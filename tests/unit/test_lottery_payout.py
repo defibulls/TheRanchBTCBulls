@@ -192,10 +192,7 @@ def test_lottery_winners():
     mocked_usdc.transfer(person_39, 10_000 * 10**6, {"from": coinbase})
     mocked_dai.transfer(person_39, 10_000 * 10**18, {"from": coinbase})
 
-    # starting_balance_of_each_account = 50_000 * 10**18
-    
-
-    
+ 
     # Owner unpauses contract
     tx_unpause_contract = TheRanchBullsMint.togglePauseStatus({"from": owner})
 
@@ -427,14 +424,10 @@ def test_lottery_winners():
     #### Set Devs ####
     ##################
     # set dev1 / dev2 address 
-    tx_set_dev1 = TheRanchBullsAirDrop.setdev1(dev1,{"from": owner})
-    tx_see_dev1 = TheRanchBullsAirDrop.see_Dev1_address()
-    assert tx_see_dev1 == dev1
-
-    tx_set_dev2 = TheRanchBullsAirDrop.setdev2(dev2,{"from": owner})
-    tx_see_dev2 = TheRanchBullsAirDrop.see_Dev2_address()
-    assert tx_see_dev2 == dev2
-    assert tx_see_dev2 != tx_see_dev1
+    TheRanchBullsAirDrop.setdev1(dev1,{"from": owner})
+  
+    TheRanchBullsAirDrop.setdev2(dev2,{"from": owner})
+    
 
 
 
@@ -508,11 +501,11 @@ def test_lottery_winners():
     ## Check ownership of NFT from both contract calls ##
     #####################################################
     
-    assert TheRanchBullsMint.ownerOf(1) == TheRanchBullsAirDrop.verifyNFTOwnerOf(1,{"from": owner})
-    assert TheRanchBullsMint.ownerOf(12) == TheRanchBullsAirDrop.verifyNFTOwnerOf(12,{"from": owner})
-    assert TheRanchBullsMint.ownerOf(123) == TheRanchBullsAirDrop.verifyNFTOwnerOf(123,{"from": owner})
-    assert TheRanchBullsMint.ownerOf(136) == TheRanchBullsAirDrop.verifyNFTOwnerOf(136,{"from": owner})
-    assert TheRanchBullsMint.ownerOf(136) != TheRanchBullsAirDrop.verifyNFTOwnerOf(116,{"from": owner}) 
+    assert TheRanchBullsMint.ownerOf(1) == TheRanchBullsAirDrop.getNFTOwnerOf(1,{"from": owner})
+    assert TheRanchBullsMint.ownerOf(12) == TheRanchBullsAirDrop.getNFTOwnerOf(12,{"from": owner})
+    assert TheRanchBullsMint.ownerOf(123) == TheRanchBullsAirDrop.getNFTOwnerOf(123,{"from": owner})
+    assert TheRanchBullsMint.ownerOf(136) == TheRanchBullsAirDrop.getNFTOwnerOf(136,{"from": owner})
+    assert TheRanchBullsMint.ownerOf(136) != TheRanchBullsAirDrop.getNFTOwnerOf(116,{"from": owner}) 
 
 
     print(f'\nBeginning Balance before airdrop: {funds_deposited/10**6}')

@@ -36,8 +36,6 @@ def test_funding_and_withdrawal_of_mint_contract():
 
 
 
-
-
     ###############################################################
     ###        Owner Funds the contract back with USDC          ###
     ###############################################################

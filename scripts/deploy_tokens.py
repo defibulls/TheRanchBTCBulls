@@ -16,7 +16,7 @@ def test_usdc():
     #owner = accounts[0]
     owner = get_account()
 
-    mocked_usdc = MockedTokens_USDC.deploy(100_000 * 10**6, {"from": owner})
+    mocked_usdc = MockedTokens_USDC.deploy(100_000_000 * 10**6, {"from": owner})
 
 
 

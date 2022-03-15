@@ -5,22 +5,14 @@ pragma solidity ^0.8.0;
 🅣🅗🅔🅡🅐🅝🅒🅗_🅑🅤🅛🅛🅢_➋⓿➋➋
 */
 
-
-// Confirm royalties are being paid out. 
-// Confirm the royalies wallet doesn't have to pay royalties on anything that wallet purchases. 
-// DECIMAL variable to help
-
-
-import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import "@chainlink/contracts/src/v0.8/VRFConsumerBase.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./TheRanchBullsMint.sol";
 
-
 contract TheRanchBullsAirDrop is VRFConsumerBase, Ownable {
 
-    AggregatorV3Interface public priceFeed;
+    // AggregatorV3Interface public priceFeed;
     mapping(address => uint256) public addressToAmountFunded;
 
 
@@ -30,9 +22,9 @@ contract TheRanchBullsAirDrop is VRFConsumerBase, Ownable {
     uint256 public dev1_percent = 14;
     uint256 public dev2_percent = 6;
     address public rewardTokenContract;
-    uint public rewardDecimals = 18;
+    uint public rewardDecimals = 6;
 
-    uint public giveawayId;
+    uint public giveawayId = 1;
 
     event centennial_Air_Drop(
         uint indexed giveawayId,
@@ -80,15 +72,12 @@ contract TheRanchBullsAirDrop is VRFConsumerBase, Ownable {
         return requestId;
     }
 
-
     /**
      * Callback function used by VRF Coordinator
      */
     function fulfillRandomness(bytes32 requestId, uint256 randomness) internal override {
         randomResult = randomness;
     }
-
-
 
     /**
      * Expand the single random number from the VRF into more (n) 
@@ -128,8 +117,6 @@ contract TheRanchBullsAirDrop is VRFConsumerBase, Ownable {
     }
 
 
-  
-
     // REWARDING of the 100 Bulls after paying out the DEV team
     function centennialAirDrop() public onlyOwner {
         require(award_state == AWARD_STATE.OPEN, "The award state is currently closed");
@@ -168,13 +155,6 @@ contract TheRanchBullsAirDrop is VRFConsumerBase, Ownable {
 
     }
 
-
-
-
-
-    //INFO RETURN
-
-
     // Minting contract info
     function setTheRanchBullsMintAddress(address _mintAddress) external {
         TheRanchBullsMintAddress = _mintAddress;
@@ -186,12 +166,7 @@ contract TheRanchBullsAirDrop is VRFConsumerBase, Ownable {
 
     }
 
-    function getNFTOwnerOf(uint _index) private view returns (address) {
-        TheRanchBullsMint TRBM = TheRanchBullsMint(TheRanchBullsMintAddress);
-        return TRBM.ownerOf(_index);
-    }
-
-    function verifyNFTOwnerOf(uint _index) public view onlyOwner returns (address) {
+    function getNFTOwnerOf(uint _index) public view returns (address) {
         TheRanchBullsMint TRBM = TheRanchBullsMint(TheRanchBullsMintAddress);
         return TRBM.ownerOf(_index);
     }
@@ -232,24 +207,6 @@ contract TheRanchBullsAirDrop is VRFConsumerBase, Ownable {
     }
 
 
-    // TESTING
-    function see_Dev1_address() public view returns (address) {
-        return dev1;
-    }
-
-    function see_Dev2_address() public view returns (address) {
-        return dev2;
-    }
-
-     function see_Dev1_percent() public view returns (uint256) {
-        return dev1_percent;
-    }
-
-    function see_Dev2_percent() public view returns (uint256) {
-        return dev2_percent;
-    }
-
-
     // Contract Control _ OnlyOwner
     function openAwardState() external onlyOwner {
         require(award_state == AWARD_STATE.CLOSED);
@@ -285,6 +242,11 @@ contract TheRanchBullsAirDrop is VRFConsumerBase, Ownable {
 
     function setRewardTokenDecimals(uint _decimals) public onlyOwner {
         rewardDecimals = _decimals;
+    }
+
+    // OVERRIDE FUNCTIONALITY
+    function transferOwnership(address newOwner) public virtual override onlyOwner{
+        // DO NOTHING
     }
 }
 

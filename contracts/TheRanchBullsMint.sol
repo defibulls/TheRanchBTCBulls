@@ -38,7 +38,7 @@ contract TheRanchBullsMint is ERC721Enumerable, IERC2981, Ownable {
    
     address public royalties;   // will be set as the future_projects wallet 
     address public mintingTokenContract;
-    uint public mintingDecimals = 18;
+    uint public mintingDecimals = 6;
 
 
     constructor(
@@ -62,7 +62,6 @@ contract TheRanchBullsMint is ERC721Enumerable, IERC2981, Ownable {
         if (presaleLive) {
             if (whiteList[msg.sender]) {
                 require(addressPurchases[msg.sender] + tokenQuantity <= 5, "EXCEEDS PRESALE AMOUNT");
-                require(mintingToken.allowance(msg.sender, address(this)) >= ((NODEBULLS_MINT_PRICE * tokenQuantity) - NODEBULLS_MINT_PRICE),"Insuficient Allowance");
                 require(mintingToken.transferFrom(msg.sender, address(this), ((NODEBULLS_MINT_PRICE * tokenQuantity) - NODEBULLS_MINT_PRICE)), "ERROR: PRICE EXCEEDS THE AMT OF USDC PROVIDED ((NODEBULLS_MINT_PRICE * quantity)) - NODEBULLS_MINT_PRICE)");
                 for (uint256 i = 0; i < tokenQuantity; i++) {
                     addressPurchases[msg.sender]++;
@@ -72,7 +71,6 @@ contract TheRanchBullsMint is ERC721Enumerable, IERC2981, Ownable {
                 
             } else if (presaleList[msg.sender]){
                 require(addressPurchases[msg.sender] + tokenQuantity <= 5, "EXCEEDS PRESALE AMOUNT");
-                require(mintingToken.allowance(msg.sender, address(this)) >= (NODEBULLS_MINT_PRICE * tokenQuantity),"Insuficient Allowance");
                 require(mintingToken.transferFrom(msg.sender, address(this), (NODEBULLS_MINT_PRICE * tokenQuantity)), "ERROR: PRICE EXCEEDS THE AMT OF USDC PROVIDED (NODEBULLS_MINT_PRICE * quantity)");
                 for (uint256 i = 0; i < tokenQuantity; i++) {
                     addressPurchases[msg.sender]++;
@@ -86,7 +84,6 @@ contract TheRanchBullsMint is ERC721Enumerable, IERC2981, Ownable {
             require(addressPurchases[msg.sender] + tokenQuantity <= NODEBULLS_MAX_MINTS_TOTAL_PER_WALLET, "EXCEEDS MAX AMOUNT PER WALLET");
             require(tokenQuantity <= NODEBULLS_MAX_MINTS_PER_TX, "EXCEEDS_BULLS_PER_TRANSACTION");
             require(_tokenSupply.current() + tokenQuantity <= NODEBULLS_SALE_TOTAL, "EXCEEDS_MAX_MINT");
-            require(mintingToken.allowance(msg.sender, address(this)) >= (NODEBULLS_MINT_PRICE * tokenQuantity),"Insuficient Allowance");
             require(mintingToken.transferFrom(msg.sender, address(this), (NODEBULLS_MINT_PRICE * tokenQuantity)), "ERROR: PRICE EXCEEDS THE AMT OF USDC PROVIDED (NODEBULLS_MINT_PRICE * quantity)");
             for(uint256 i = 0; i < tokenQuantity; i++) {
                 addressPurchases[msg.sender]++;
@@ -99,12 +96,10 @@ contract TheRanchBullsMint is ERC721Enumerable, IERC2981, Ownable {
     }
 
     
-
     function getBalance() public view returns (uint256){
         uint256 _balance = address(this).balance;
         return _balance;
     }
-
 
     function checkTokenBalance(address token) public view returns(uint) {
         IERC20 token = IERC20(token);
@@ -133,7 +128,6 @@ contract TheRanchBullsMint is ERC721Enumerable, IERC2981, Ownable {
         }
         return false;
     }
-
 
 
     // Contract Funding / Withdrawing / Transferring
@@ -232,11 +226,9 @@ contract TheRanchBullsMint is ERC721Enumerable, IERC2981, Ownable {
     }
 
     function adjustMintsPerWallet(uint num) external onlyOwner {
-        require(num >= 20);
         NODEBULLS_MAX_MINTS_TOTAL_PER_WALLET = num;
     }
     function adjustMintsPerTransaction(uint num) external onlyOwner {
-        require(num >= 3);
         NODEBULLS_MAX_MINTS_PER_TX = num;
     }
 
@@ -256,6 +248,12 @@ contract TheRanchBullsMint is ERC721Enumerable, IERC2981, Ownable {
     function setMintingTokenDecimals(uint _decimals) public onlyOwner {
         mintingDecimals = _decimals;
     }
+
+    // OVERRIDE FUNCTIONALITY
+    function transferOwnership(address newOwner) public virtual override onlyOwner{
+        // DO NOTHING
+    }
+
 }
 
 
