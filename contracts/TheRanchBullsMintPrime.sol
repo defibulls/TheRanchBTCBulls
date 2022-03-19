@@ -189,10 +189,6 @@ contract TheRanchBullsMintPrime is ERC721Enumerable, IERC2981, Ownable {
     }
 
     // Contract Control _ OnlyOwner
-    function togglePresaleStatus() external onlyOwner {
-        presaleLive = !presaleLive;
-    }
-
     function togglePublicSaleStatus() external onlyOwner {
         publicSaleLive = !publicSaleLive;
     }
