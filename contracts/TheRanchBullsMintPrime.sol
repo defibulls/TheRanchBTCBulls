@@ -38,7 +38,6 @@ contract TheRanchBullsMintPrime is ERC721Enumerable, IERC2981, Ownable {
     string private baseURI;
     string private baseExtension = ".json";
  
-    bool public presaleLive = false;
     bool public publicSaleLive = false;
     bool public paused = true;
    
