@@ -3,6 +3,9 @@ from brownie import NodeBulls, network, config, MockV3Aggregator
 import time
 
 
+from brownie import accounts
+
+
 
 def deploy_contract():
     account = get_account()
@@ -14,14 +17,13 @@ def deploy_contract():
     #     price_feed_address = MockV3Aggregator[-1].address
     
     nodebulls = NodeBulls.deploy(
-        get_account(index=99),
-        get_account(index=98),
-        get_account(index=97),
-        get_contract("vrf_coordinator").address,
-        get_contract("link_token").address,
-        config["networks"][network.show_active()]["fee"],
-        config["networks"][network.show_active()]["keyhash"],
-        "ipfs://QmdUXmi3hQo38im7giUQ1G5RWo16KxR4vNLfCNyfiLt4ao/",
+        get_account(index=1),
+       
+        # get_contract("vrf_coordinator").address,
+        # get_contract("link_token").address,
+        # config["networks"][network.show_active()]["fee"],
+        # config["networks"][network.show_active()]["keyhash"],
+        # "ipfs://QmdUXmi3hQo38im7giUQ1G5RWo16KxR4vNLfCNyfiLt4ao/",
         {"from": account},
         publish_source=config["networks"][network.show_active()].get("verify", False),
     )
@@ -33,6 +35,3 @@ def main():
     deploy_contract()
 
 
-
-
-#         price_feed_address,
