@@ -231,11 +231,11 @@ def test_blacklist_usdc():
 
 
         assert TheRanchBullsMintAndReward.balanceOf(TheRanchBullsMintAndReward) == 0
-        assert mocked_usdc.balanceOf(TheRanchBullsMintAndReward) == ((2 * 150) * (10 ** 6))
-        assert TheRanchBullsMintAndReward.btcMinersBalanceTotal.call() ==   ((2 * 150) * (10 ** 6)) * .90
-        assert TheRanchBullsMintAndReward.dailyRaffleBalance.call() ==  ((2 * 150) * (10 ** 6)) * 0.03
-        assert TheRanchBullsMintAndReward.warChestBalance.call() ==  ((2 * 150) * (10 ** 6)) * 0.05
-        assert TheRanchBullsMintAndReward.USDCRewardsBalanceTotal.call() == ((2 * 150) * (10 ** 6)) * 0.05
+        assert mocked_usdc.balanceOf(TheRanchBullsMintAndReward) == ((2 * 350) * (10 ** 6))
+        assert TheRanchBullsMintAndReward.btcMinersBalanceTotal.call() ==   ((2 * 350) * (10 ** 6)) * .90
+        assert TheRanchBullsMintAndReward.dailyRaffleBalance.call() ==  ((2 * 350) * (10 ** 6)) * 0.03
+        assert TheRanchBullsMintAndReward.warChestBalance.call() ==  ((2 * 350) * (10 ** 6)) * 0.05
+        assert TheRanchBullsMintAndReward.USDCRewardsBalanceTotal.call() == ((2 * 350) * (10 ** 6)) * 0.05
         assert TheRanchBullsMintAndReward.getNumberOfRafflePlayers() == 1
         assert TheRanchBullsMintAndReward.totalSupply() == 2
         assert TheRanchBullsMintAndReward.getRafflePlayer(0) == person_1

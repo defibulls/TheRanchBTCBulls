@@ -241,11 +241,11 @@ def test_maintenanceFees():
 
 
     assert TheRanchBullsMintAndReward.balanceOf(TheRanchBullsMintAndReward) == 0
-    assert mocked_usdc.balanceOf(TheRanchBullsMintAndReward) == ((7 * 150) * (10 ** 6))
-    assert TheRanchBullsMintAndReward.btcMinersBalanceTotal.call() ==   ((7 * 150) * (10 ** 6)) * .90
-    assert TheRanchBullsMintAndReward.dailyRaffleBalance.call() ==  ((7 * 150) * (10 ** 6)) * 0.03
-    assert TheRanchBullsMintAndReward.warChestBalance.call() ==  ((7 * 150) * (10 ** 6)) * 0.05
-    assert TheRanchBullsMintAndReward.USDCRewardsBalanceTotal.call() == ((7 * 150) * (10 ** 6)) * 0.05
+    assert mocked_usdc.balanceOf(TheRanchBullsMintAndReward) == ((7 * 350) * (10 ** 6))
+    assert TheRanchBullsMintAndReward.btcMinersBalanceTotal.call() ==   ((7 * 350) * (10 ** 6)) * .90
+    assert TheRanchBullsMintAndReward.dailyRaffleBalance.call() ==  ((7 * 350) * (10 ** 6)) * 0.03
+    assert TheRanchBullsMintAndReward.warChestBalance.call() ==  ((7 * 350) * (10 ** 6)) * 0.05
+    assert TheRanchBullsMintAndReward.USDCRewardsBalanceTotal.call() == ((7 * 350) * (10 ** 6)) * 0.05
     assert TheRanchBullsMintAndReward.getNumberOfRafflePlayers() == 5
     assert TheRanchBullsMintAndReward.totalSupply() == 7
     assert TheRanchBullsMintAndReward.getRafflePlayer(0) == person_1
@@ -313,6 +313,10 @@ def test_maintenanceFees():
     amount_to_award = 1 * wbtc_decimals
 
     print(f'money to approve : {amount_to_award}')
+
+
+    TheRanchBullsMintAndReward.togglePauseStatus({"from": owner})
+
 
     mocked_wbtc.approve(TheRanchBullsMintAndReward, amount_to_award, {"from": owner})
     fund_stockyards_tx = TheRanchBullsMintAndReward.fundAndRewardBulls(1,7,amount_to_award,{"from": owner})
@@ -497,6 +501,10 @@ def test_maintenanceFees():
 
        
 
+    TheRanchBullsMintAndReward.togglePauseStatus({"from": owner})
+    assert TheRanchBullsMintAndReward.paused.call() == False
+
+
     mocked_usdc.approve(TheRanchBullsMintAndReward.address, price_needed(amt),{"from":person_6})
     TheRanchBullsMintAndReward.mint(amt,raffleEntryBool,{"from": person_6, "value":  price_needed(amt)})
 
@@ -538,6 +546,8 @@ def test_maintenanceFees():
 
 
 
+    TheRanchBullsMintAndReward.togglePauseStatus({"from": owner})
+    assert TheRanchBullsMintAndReward.paused.call() == True
 
 
 
@@ -738,7 +748,7 @@ def test_maintenanceFees():
 
 
     ############## LIQUIDATION #############
-    liquidation_event = TheRanchBullsMintAndReward.liquidation()
+    liquidation_event = TheRanchBullsMintAndReward.liquidateOutstandingAccounts()
 
     print(liquidation_event.info())
 
@@ -887,133 +897,6 @@ def test_maintenanceFees():
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-    # # ############# assert how much money should be in each stockyard ############
-
-
-    # expected_bonus_amt = ((1/5 * (amount_to_award * .9)) * .01)
-
-
-
-
-    # assert TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(coreTeam1) == ((amount_to_award * .10) * .8) + (expected_bonus_amt * 4)
-    # assert TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(coreTeam2) == ((amount_to_award * .10) * .2) + (expected_bonus_amt * 4)
-    # assert TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(person_1) == (1/5 * (amount_to_award * .9)) - (expected_bonus_amt)
-    # assert TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(person_2) == (1/5 * (amount_to_award * .9)) - (expected_bonus_amt)
-    # assert TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(person_3) == (1/5 * (amount_to_award * .9)) - (expected_bonus_amt*2)
-    # assert TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(person_4) == (1/5 * (amount_to_award * .9)) - (expected_bonus_amt*2)
-    # assert TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(person_5) == (1/5 * (amount_to_award * .9)) - (expected_bonus_amt*2)
-
-
-    # owner_balance_before_withdraw = TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(owner)
-    # coreTeam1_balance_before_withdraw = TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(coreTeam1)
-    # coreTeam2_balance_before_withdraw = TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(coreTeam2)
-    # person1_balance_before_withdraw = TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(person_1)
-    # person2_balance_before_withdraw = TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(person_2)
-    # person3_balance_before_withdraw = TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(person_3)
-    # person4_balance_before_withdraw = TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(person_4)
-    # person5_balance_before_withdraw = TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(person_5)
-
-
-    # withdraw_person1_tx = TheRanchBullsMintAndReward.withdrawWbtcForWalletAddress({"from": person_1})
-    # amount_transferred_tx1 = withdraw_person1_tx.events["withdrawWbtcRewardsEvent"]["totalAmountTransferred"]
-    # tax_collected_tx1 = withdraw_person1_tx.events["withdrawWbtcRewardsEvent"]["taxCollectedAmt"]
-
-    # print(withdraw_person1_tx.info())
-  
-  
-    # assert person1_balance_before_withdraw == (amount_transferred_tx1 + tax_collected_tx1)
-
-    # assert TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(owner) == owner_balance_before_withdraw + tax_collected_tx1
-    # assert TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(coreTeam1) == coreTeam1_balance_before_withdraw
-    # assert TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(coreTeam2) == coreTeam2_balance_before_withdraw
-    # assert TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(person_1) == 0
-    # assert TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(person_2) == person2_balance_before_withdraw
-    # assert TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(person_3) == person3_balance_before_withdraw
-    # assert TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(person_4) == person4_balance_before_withdraw
-    # assert TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(person_5) == person5_balance_before_withdraw
-
-
-
-    # print(withdraw_person1_tx.info())
-
-
-    # withdraw_coreTeam1_tx = TheRanchBullsMintAndReward.withdrawWbtcForWalletAddress({"from": coreTeam1})
-    # amount_transferred_tx2 = withdraw_coreTeam1_tx.events["withdrawWbtcRewardsEvent"]["totalAmountTransferred"]
-    # tax_collected_tx2 = withdraw_coreTeam1_tx.events["withdrawWbtcRewardsEvent"]["taxCollectedAmt"]
-
-    # assert coreTeam1_balance_before_withdraw == (amount_transferred_tx2 + tax_collected_tx2)
- 
-
-    # print(withdraw_coreTeam1_tx.info())
-
-    # assert TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(owner) == owner_balance_before_withdraw + tax_collected_tx1
-    # assert TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(coreTeam1) == 0
-    # assert TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(coreTeam2) == coreTeam2_balance_before_withdraw
-    # assert TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(person_1) == 0
-    # assert TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(person_2) == person2_balance_before_withdraw
-    # assert TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(person_3) == person3_balance_before_withdraw
-    # assert TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(person_4) == person4_balance_before_withdraw
-    # assert TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(person_5) == person5_balance_before_withdraw
-
-
-
-
-
-    # withdraw_coreTeam2_tx = TheRanchBullsMintAndReward.withdrawWbtcForWalletAddress({"from": coreTeam2})
-    # amount_transferred_tx3 = withdraw_coreTeam2_tx.events["withdrawWbtcRewardsEvent"]["totalAmountTransferred"]
-    # tax_collected_tx3 = withdraw_coreTeam2_tx.events["withdrawWbtcRewardsEvent"]["taxCollectedAmt"]
-
-    # assert coreTeam2_balance_before_withdraw == (amount_transferred_tx3 + tax_collected_tx3)
-
-    
-    # print(withdraw_coreTeam2_tx.info())
-
-
-
-    # assert TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(owner) == owner_balance_before_withdraw + tax_collected_tx1
-    # assert TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(coreTeam1) == 0
-    # assert TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(coreTeam2) == 0 
-    # assert TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(person_1) == 0
-    # assert TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(person_2) == person2_balance_before_withdraw
-    # assert TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(person_3) == person3_balance_before_withdraw
-    # assert TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(person_4) == person4_balance_before_withdraw
-    # assert TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(person_5) == person5_balance_before_withdraw
-
-
-
-
-
-
-    # withdraw_person4_tx = TheRanchBullsMintAndReward.withdrawWbtcForWalletAddress({"from": person_4})
-    # amount_transferred_tx4 = withdraw_person4_tx.events["withdrawWbtcRewardsEvent"]["totalAmountTransferred"]
-    # tax_collected_tx4 = withdraw_person4_tx.events["withdrawWbtcRewardsEvent"]["taxCollectedAmt"]
-
-    # assert person4_balance_before_withdraw == (amount_transferred_tx4 + tax_collected_tx4)
-
-    
-    # print(withdraw_person4_tx.info())
-
-
-    # assert TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(owner) == owner_balance_before_withdraw + tax_collected_tx1 + tax_collected_tx4
-    # assert TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(coreTeam1) == 0
-    # assert TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(coreTeam2) == 0 
-    # assert TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(person_1) == 0
-    # assert TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(person_2) == person2_balance_before_withdraw
-    # assert TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(person_3) == person3_balance_before_withdraw
-    # assert TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(person_4) == 0
-    # assert TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress(person_5) == person5_balance_before_withdraw
 
 
 

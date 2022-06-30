@@ -302,11 +302,18 @@ def test_blacklist_wbtc():
     print(f'money to approve : {amount_to_send}')
 
 
-    mocked_wbtc.approve(TheRanchBullsMintAndReward,amount_to_send, {"from":owner})
 
+    TheRanchBullsMintAndReward.togglePauseStatus({"from": owner})
+    assert TheRanchBullsMintAndReward.paused.call() == True
+
+    mocked_wbtc.approve(TheRanchBullsMintAndReward,amount_to_send, {"from":owner})
     fund_stockyards_tx = TheRanchBullsMintAndReward.fundAndRewardBulls(1,15,amount_to_send,{"from": owner})
     ##print(fund_stockyards_tx.info())
     assert mocked_wbtc.balanceOf(TheRanchBullsMintAndReward) == amount_to_send 
+
+    TheRanchBullsMintAndReward.togglePauseStatus({"from": owner})
+    assert TheRanchBullsMintAndReward.paused.call() == False
+
 
 
 

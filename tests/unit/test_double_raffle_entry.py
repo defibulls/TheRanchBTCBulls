@@ -2,10 +2,10 @@ from curses import use_env
 from distutils import core
 from unittest import mock
 from pyrsistent import v
-from scripts.helpful_scripts import get_account, get_contract, deploy_mocks, fund_with_link, LOCAL_BLOCKCHAIN_ENVIRONMENTS
-from brownie import TheRanchBullsMint, TheRanchBullsReward, MockedTokens_USDC, MockedTokens_WBTC, network, config, MockV3Aggregator, accounts, exceptions, chain
-from scripts.deploy_mint import deploy_mint_contract
-from scripts.deploy_reward import deploy_reward_contract
+from scripts.helpful_scripts import get_account, get_contract, fund_with_link, LOCAL_BLOCKCHAIN_ENVIRONMENTS
+from brownie import TheRanchBullsMintAndReward, MockedTokens_USDC, MockedTokens_WBTC, network, config, MockV3Aggregator, accounts, exceptions, chain
+from scripts.deploy_mintAndReward import deploy_contract
+from scripts.deploy_v2mocks import deploy_v2mocks
 from web3 import Web3
 import time, pytest
 import pprint
@@ -16,25 +16,14 @@ import math
 
 
 
-def test_double_raffle_entry():
+def test_blacklist_usdc():
 
     fund_deposited = 80_000
 
     #owner = accounts[0]
     owner = get_account()
-    TheRanchBullsMint = deploy_mint_contract()
-    TheRanchBullsReward = deploy_reward_contract()
+    TheRanchBullsMintAndReward = deploy_contract()
 
-    ### set the address on each contract for to reference other contract ####
-
-    TheRanchBullsMint.setRewardContractAddress(TheRanchBullsReward, {"from": owner})
-    TheRanchBullsReward.setTheRanchBullsMintAddress(TheRanchBullsMint, {"from": owner})
-
-    contract_balance = TheRanchBullsMint.balanceOf(TheRanchBullsMint)
-    print(f'TheRanchBullsMint_contract_adddress: {TheRanchBullsMint.address}')
-    print(f'TheRanchBullsReward_contract_adddress: {TheRanchBullsReward.address}')
-    assert contract_balance == 0
-    
     person_1 = accounts[1]
     person_2 = accounts[2]
     person_3 = accounts[3]
@@ -90,15 +79,14 @@ def test_double_raffle_entry():
     #######################################################
 
    
-    TheRanchBullsMint.setMintingTokenAddress(mocked_usdc,{"from": owner})
-    TheRanchBullsMint.setMintingTokenDecimals(6,{"from": owner})
+    TheRanchBullsMintAndReward.setUsdcTokenAddress(mocked_usdc,{"from": owner})
     
     # print(f'usdc address : {mocked_usdc.address}')
     # print(f'dai address :  {mocked_dai.address}')
     # print(f'TotalSupplyOfTokens: {mocked_tokens_usdc.totalSupply()/10**18}')
     print(f'CoinbaseMock USDC Balance: {mocked_usdc.balanceOf(coinbase) / 10**6}')
  
-    print(f'TheRanchBullsMint_ETH_balance: {TheRanchBullsMint.balanceOf(TheRanchBullsMint) /10**18}')
+    print(f'TheRanchBullsMintAndReward_ETH_balance: {TheRanchBullsMintAndReward.balanceOf(TheRanchBullsMintAndReward) /10**18}')
   
     assert (mocked_usdc.balanceOf(coinbase) / 10**6) == 500_000
 
@@ -167,90 +155,103 @@ def test_double_raffle_entry():
 
 
 
-    ### set coreTeam wallets ###
-    TheRanchBullsMint.setCoreTeam1Address(coreTeam1,{"from": owner})
-    TheRanchBullsMint.setCoreTeam2Address(coreTeam2,{"from": owner})
-
- 
+     ### set coreTeam wallets ###
+    TheRanchBullsMintAndReward.setCoreTeam_1_Address(coreTeam1,{"from": owner})
+    TheRanchBullsMintAndReward.setCoreTeam_2_Address(coreTeam2,{"from": owner})
     # Owner unpauses contracts
-    tx_unpause_contract_mint = TheRanchBullsMint.togglePauseStatus({"from": owner})
-    tx_unpause_contract_reward = TheRanchBullsReward.togglePauseStatus({"from": owner})
 
+
+    TheRanchBullsMintAndReward.setWbtcTokenAddress(mocked_usdc,{"from": owner})       ## needs to be set even though its not WBTC, just for testing
+
+
+    tx_unpause_contract_mint = TheRanchBullsMintAndReward.togglePauseStatus({"from": owner})
+  
     #owner starts the public sale
-    tx_start_public_sale = TheRanchBullsMint.togglePublicSaleStatus({"from": owner})
+    tx_start_public_sale = TheRanchBullsMintAndReward.togglePublicSaleStatus({"from": owner})
 
 
     def price_needed(count):
-        return (count * TheRanchBullsMint.mintingCost() * 10 ** 6)
+        return (count * TheRanchBullsMintAndReward.mintingCost() * 10 ** 6)
 
  
     print(f'\nBEFORE: person_1 ETH Balance: {person_1.balance()/10**18}')
     print(f'BEFORE: person_1 usdc Balance: {mocked_usdc.balanceOf(person_1) / 10**6}')
 
 
-    assert TheRanchBullsMint.balanceOf(TheRanchBullsMint) == 0
-    assert mocked_usdc.balanceOf(TheRanchBullsMint) == 0
-    assert TheRanchBullsMint.btcMinersBalance.call() == 0
-    assert TheRanchBullsMint.USDCRewardsBalance.call() == 0
-    assert TheRanchBullsMint.dailyRaffleBalance.call() == 0
-    assert TheRanchBullsMint.getNumberOfRafflePlayers() == 0
-    assert TheRanchBullsMint.totalSupply() == 0
-    assert TheRanchBullsMint.getUserAlreadyInDailyRaffleStatus(person_1) == False
+    assert TheRanchBullsMintAndReward.balanceOf(TheRanchBullsMintAndReward) == 0
 
 
+    assert TheRanchBullsMintAndReward.balanceOf(TheRanchBullsMintAndReward) == 0
+    assert mocked_usdc.balanceOf(TheRanchBullsMintAndReward) == 0
+    assert TheRanchBullsMintAndReward.btcMinersBalanceTotal.call() ==  0
+    assert TheRanchBullsMintAndReward.dailyRaffleBalance.call() == 0
+    assert TheRanchBullsMintAndReward.warChestBalance.call() ==  0
+    assert TheRanchBullsMintAndReward.USDCRewardsBalanceTotal.call() == 0 
 
-    return
+    assert TheRanchBullsMintAndReward.getNumberOfRafflePlayers() == 0
+    assert TheRanchBullsMintAndReward.totalSupply() == 0
+    assert TheRanchBullsMintAndReward.getUserAlreadyInDailyRaffleStatus(person_1) == False
+
 
     raffleEntryBool = True
 
     amt = 2
-    mocked_usdc.approve(TheRanchBullsMint.address, price_needed(amt),{"from":person_1})
-    tx1 = TheRanchBullsMint.mint(amt,raffleEntryBool,{"from": person_1, "value":  price_needed(amt)})
+    mocked_usdc.approve(TheRanchBullsMintAndReward.address, price_needed(amt),{"from":person_1})
+    tx1 = TheRanchBullsMintAndReward.mint(amt,raffleEntryBool,{"from": person_1, "value":  price_needed(amt)})
     #print(tx1.info())
 
     
 
-    assert TheRanchBullsMint.balanceOf(TheRanchBullsMint) == 0
-    assert mocked_usdc.balanceOf(TheRanchBullsMint) == 300 * 10 ** 6
-    assert TheRanchBullsMint.btcMinersBalance.call() == (300 * 10 ** 6) * .95
-    assert TheRanchBullsMint.USDCRewardsBalance.call() == (300 * 10 ** 6) * .05
-    assert TheRanchBullsMint.dailyRaffleBalance.call() == (300 * 10 ** 6) * .03
-    assert TheRanchBullsMint.getNumberOfRafflePlayers() == 1
-    assert TheRanchBullsMint.totalSupply() == 2
-    assert TheRanchBullsMint.getRafflePlayer(0) == person_1
-    assert TheRanchBullsMint.getUserAlreadyInDailyRaffleStatus(person_1) == True
+    assert TheRanchBullsMintAndReward.balanceOf(TheRanchBullsMintAndReward) == 0
+
+
+    assert mocked_usdc.balanceOf(TheRanchBullsMintAndReward) == ((2 * 350) * (10 ** 6))
+    assert TheRanchBullsMintAndReward.btcMinersBalanceTotal.call() ==   ((2 * 350) * (10 ** 6)) * .90
+    assert TheRanchBullsMintAndReward.dailyRaffleBalance.call() ==  ((2 * 350) * (10 ** 6)) * 0.03
+    assert TheRanchBullsMintAndReward.warChestBalance.call() ==  ((2 * 350) * (10 ** 6)) * 0.05
+    assert TheRanchBullsMintAndReward.USDCRewardsBalanceTotal.call() == ((2 * 350) * (10 ** 6)) * 0.05
+
+
+    assert TheRanchBullsMintAndReward.getNumberOfRafflePlayers() == 1
+    assert TheRanchBullsMintAndReward.totalSupply() == 2
+    assert TheRanchBullsMintAndReward.getRafflePlayer(0) == person_1
+    assert TheRanchBullsMintAndReward.getUserAlreadyInDailyRaffleStatus(person_1) == True
 
 
 
 
 
     amt = 2
-    mocked_usdc.approve(TheRanchBullsMint.address, price_needed(amt),{"from":person_1})
-    tx2 = TheRanchBullsMint.mint(amt,raffleEntryBool,{"from": person_1, "value":  price_needed(amt)})
+    mocked_usdc.approve(TheRanchBullsMintAndReward.address, price_needed(amt),{"from":person_1})
+    tx2 = TheRanchBullsMintAndReward.mint(amt,raffleEntryBool,{"from": person_1, "value":  price_needed(amt)})
 
 
 
-    assert TheRanchBullsMint.balanceOf(TheRanchBullsMint) == 0
-    assert mocked_usdc.balanceOf(TheRanchBullsMint) == 600 * 10 ** 6
-    assert TheRanchBullsMint.btcMinersBalance.call() == (600 * 10 ** 6) * .95
-    assert TheRanchBullsMint.USDCRewardsBalance.call() == (600 * 10 ** 6) * .05
-    assert TheRanchBullsMint.dailyRaffleBalance.call() == (600 * 10 ** 6) * .03
-    assert TheRanchBullsMint.getNumberOfRafflePlayers() == 1
-    assert TheRanchBullsMint.totalSupply() == 4
-    assert TheRanchBullsMint.getRafflePlayer(0) == person_1
-    assert TheRanchBullsMint.getUserAlreadyInDailyRaffleStatus(person_1) == True
+    assert TheRanchBullsMintAndReward.balanceOf(TheRanchBullsMintAndReward) == 0
+
+    assert mocked_usdc.balanceOf(TheRanchBullsMintAndReward) == ((4 * 350) * (10 ** 6))
+    assert TheRanchBullsMintAndReward.btcMinersBalanceTotal.call() ==   ((4 * 350) * (10 ** 6)) * .90
+    assert TheRanchBullsMintAndReward.dailyRaffleBalance.call() ==  ((4 * 350) * (10 ** 6)) * 0.03
+    assert TheRanchBullsMintAndReward.warChestBalance.call() ==  ((4 * 350) * (10 ** 6)) * 0.05
+    assert TheRanchBullsMintAndReward.USDCRewardsBalanceTotal.call() == ((4 * 350) * (10 ** 6)) * 0.05
+
+
+    assert TheRanchBullsMintAndReward.getNumberOfRafflePlayers() == 1
+    assert TheRanchBullsMintAndReward.totalSupply() == 4
+    assert TheRanchBullsMintAndReward.getRafflePlayer(0) == person_1
+    assert TheRanchBullsMintAndReward.getUserAlreadyInDailyRaffleStatus(person_1) == True
 
     
 
 
      ## This doesn't work anymore now that the function is internal ###
     # ### something has to clear the userInDailyRaffle mapping first. 
-    # TheRanchBullsMint.resetUserInDailyRaffle()
+    # TheRanchBullsMintAndReward.resetUserInDailyRaffle()
 
-    # assert TheRanchBullsMint.getNumberOfRafflePlayers() == 1
-    # assert TheRanchBullsMint.totalSupply() == 4
-    # assert TheRanchBullsMint.getRafflePlayer(0) == person_1
-    # assert TheRanchBullsMint.getUserAlreadyInDailyRaffleStatus(person_1) == False
+    # assert TheRanchBullsMintAndReward.getNumberOfRafflePlayers() == 1
+    # assert TheRanchBullsMintAndReward.totalSupply() == 4
+    # assert TheRanchBullsMintAndReward.getRafflePlayer(0) == person_1
+    # assert TheRanchBullsMintAndReward.getUserAlreadyInDailyRaffleStatus(person_1) == False
 
 
 

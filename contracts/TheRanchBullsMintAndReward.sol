@@ -51,7 +51,7 @@ contract TheRanchBullsMintAndReward is
     uint256 public coreTeam_2_percent = 2;
 
     // Minting 
-    uint256 public mintingCost = 150;  // USDC.e
+    uint256 public mintingCost = 350;  // USDC.e
     uint public bulls_in_existence = 10000;
 
     bool public publicSaleLive = false;
@@ -91,7 +91,7 @@ contract TheRanchBullsMintAndReward is
   
 
     // Raffle Variables
-    uint256 public interval = 3600;
+    uint256 public interval = 86400;
     uint256 private lastTimeStamp;
     address[] private dailyRafflePlayers;
     RaffleMintState private raffleMintState;
@@ -102,7 +102,7 @@ contract TheRanchBullsMintAndReward is
     uint256 public calculatedMonthlyMaintenanceFee;   
 
 
-    // monththy storage that gets reset
+    // monththy storage that gets reset every month
     mapping(address => bool) monthlyMaintanenceFeeDue;
     mapping(address => uint) nftsHeldByAddressAtMonthlyPayout;
     address[] public addressesToPayMaintenanceFees; 
@@ -113,8 +113,22 @@ contract TheRanchBullsMintAndReward is
 
     mapping(address => uint256) public totalMaintanenceFeesDue;
     mapping(address => uint)  public monthsBehindMaintenanceFeeDueDate;
+
+
+    /**
+     * @dev This mapping will serve the feeding contract and potenitally more in the future. These contracts will have the ability to call the updateUSDCBonusAmtForAddress
+     * function. As this is the primary reward token for minting and paying Maint Fees, We plan to launch another NFT that will award 
+     * owners on this contract with USDC. The hope being the other project helps each owner of the BTC bulls payoff their maint fees and hopefully more 
+     * to be an additional source of revenue for each Bull Owner 
+    */
+    mapping (address => bool) isAllowedToInteract; 
+
     
-    // For addresses that are more than 3 months behind on the maintenance fees
+
+    /**
+     * @dev For addresses that are more than 3 months behind on the maintenance fees, each 
+     * each address added here will get luquidated
+    */
     address[] public upForLiquidation; 
 
 
@@ -122,30 +136,6 @@ contract TheRanchBullsMintAndReward is
         OPEN,
         PROCESSING
     }
-
-    /**
-     * @dev The feeding contract will be another contract that will have the ability to call the updateUSDCBonusAmtForAddress
-     * function. As this is the primary reward token for minting and paying Maint Fees, We plan to launch another NFT that will award 
-     * owners on this contract with USDC. The hope being the other project helps each owner of the BTC bulls payoff their maint fees. 
-    */
-    modifier onlyBullsFeedingContract {
-        require(msg.sender == TheBullsFeedingContract);
-        _;
-    }
-
-    address public TheBullsFeedingContract; // Future NFT contract that will update USDC amount for NFT owners on this contract
-
-
-    function setTheBullsFeedingContract(address _BullsFeedingContractAddress) public onlyOwner {
-        require(address(_BullsFeedingContractAddress) != address(0));
-        TheBullsFeedingContract = _BullsFeedingContractAddress;
-    }
-
-    // update USDC amount, coming from the Feeding Contract
-    function updateUSDCBonusFromFeedingContract(address _ownerOfFeedNFT, uint256 _amountToAdd) external onlyBullsFeedingContract {
-        USDCRewardsForAddress[_ownerOfFeedNFT] += _amountToAdd;
-    }
-
 
 
 
@@ -276,9 +266,7 @@ contract TheRanchBullsMintAndReward is
         // update USDC Reward Balances for referrals
         address referrer = myPartner[msg.sender];
         if(referrer != address(0) && userMintCount[referrer] > 0){
-            uint256 splitReferralAmt = referralFundAmt * 50 / 100;
-            updateUsdcBonus(msg.sender, splitReferralAmt);
-            updateUsdcBonus(referrer, splitReferralAmt);
+            updateUsdcBonus(referrer, referralFundAmt);
         }
         else
         {
@@ -293,7 +281,7 @@ contract TheRanchBullsMintAndReward is
 
 
     function fundAndRewardBulls(uint _startingIndex, uint _endingIndex, uint256 _totalAmountToDeposit) public payable onlyOwner {
-        require(paused, "ERROR: Contract must be paused to start the monlthly rewarding process");
+        require(paused, "ERROR: Contract must be paused to start the monthly rewarding process");
         require(_startingIndex < _endingIndex,"ERROR: Start must be lower");
         require(_startingIndex > 0,"ERROR: Index 0 doesn't exist");
         require(_endingIndex <= _tokenSupply.current(),"ERROR: This touches an non existent NFT ID");
@@ -347,12 +335,26 @@ contract TheRanchBullsMintAndReward is
 
     }
 
+    /**
+    * @dev When The Feeding Contract checks the owners of the NFTs (HayBales NFTs) from that contract, it reaches 
+    * over to this contract and tries to update the USDC amount within these rules:
+    * if the HayBale owner also owns a Bull NFT on this contract, they'll get 100% of the paycut.
+    * if the Haybale owner does not own a bull, they will share the paycut 50/50 with CoreTeam_1 
+    */
+    function updateUsdcBonusFromAnotherContract(address _ownerOfNFT, uint256 _amountToAdd) external {
+        require(isAllowedToInteract[msg.sender] == true, "You are not allowed to call this function");
 
-
-
-
+        if (balanceOf(_ownerOfNFT) > 0){
+            USDCRewardsForAddress[_ownerOfNFT] += _amountToAdd;
+        } else {
+            uint256 splitBonusAmt = _amountToAdd * 50 / 100;
+            USDCRewardsForAddress[_ownerOfNFT] += splitBonusAmt;
+            USDCRewardsForAddress[coreTeam_1] += splitBonusAmt;
+        }
+    }
 
     function updateMaintenanceFeesForTheMonth() external onlyOwner {
+        require(paused, "ERROR: Contract must be paused to start the monthly rewarding process");
         require(calculatedMonthlyMaintenanceFee != 0, "You must set the Calculated Monthly Maintenance Fee First");
         require(addressesToPayMaintenanceFees.length > 0, "Must fund and award first");
 
@@ -385,7 +387,7 @@ contract TheRanchBullsMintAndReward is
 
 
     function updateMonthsBehindMaintenanceFeeDueDate() external onlyOwner {
-
+        require(paused, "ERROR: Contract must be paused to start the monthly rewarding process");
 
         address[] memory _allAddressThatHaveEverBeenRewarded = allAddressThatHaveEverBeenRewarded; 
 
@@ -409,7 +411,8 @@ contract TheRanchBullsMintAndReward is
     }
 
 
-    function liquidation() external onlyOwner {
+    function liquidateOutstandingAccounts() external onlyOwner {
+        require(paused, "ERROR: Contract must be paused to start the monthly rewarding process");
         require(upForLiquidation.length > 0, "No one meets liquidation criteria.");
         for( uint i; i < upForLiquidation.length; i++) {
             address _culprit = upForLiquidation[i];
@@ -426,7 +429,6 @@ contract TheRanchBullsMintAndReward is
         upForLiquidation = new address[](0);
     }
 
-  
 
     /**
      * @dev If the user has USDC rewards to claim
@@ -558,7 +560,6 @@ contract TheRanchBullsMintAndReward is
         dailyRaffleBalance = 0;  // reset dailyRaffleBalance back to zero after drawing
         dailyRafflePlayers = new address[](0);
 
-
         lastTimeStamp = block.timestamp;
         raffleMintState = RaffleMintState.OPEN;
         emit dailyRaffleWinnerEvent(dailYRaffleWinner, raffleWinningAmount);
@@ -576,6 +577,7 @@ contract TheRanchBullsMintAndReward is
             userInDailyRaffle[dailyRafflePlayers[i]] = false;
         }
     }
+
 
     function setPartnerAddress(address _newPartner)  public {
         require(address(_newPartner) != address(0), "ERROR: address can't be address(0)");
@@ -665,6 +667,8 @@ contract TheRanchBullsMintAndReward is
     function updateUsdcBonus(address _recipient, uint256 _amountToAdd) internal {
         USDCRewardsForAddress[_recipient] += _amountToAdd;
     }
+
+
 
     function getUsdcRewardBalanceForAddress() public view returns (uint256) {
         return USDCRewardsForAddress[msg.sender];
@@ -866,6 +870,11 @@ contract TheRanchBullsMintAndReward is
 
     function setMonthlyMaintenanceFeePerNFT(uint256 _monthly_maint_fee_per_nft) external onlyOwner {
         calculatedMonthlyMaintenanceFee = _monthly_maint_fee_per_nft;
+    }
+
+    function setAllowedContractsToAwardTheBulls(address _address, bool _bool) public onlyOwner {
+        require( _address != address(0), "Can't be address(0)");
+        isAllowedToInteract[_address] = _bool;
     }
 
 

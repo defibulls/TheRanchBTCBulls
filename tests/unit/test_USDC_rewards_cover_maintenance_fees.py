@@ -257,11 +257,11 @@ def test_USDC_rewards_covery_maintenance_fees():
 
 
     assert TheRanchBullsMintAndReward.balanceOf(TheRanchBullsMintAndReward) == 0
-    assert mocked_usdc.balanceOf(TheRanchBullsMintAndReward) == ((7 * 150) * (10 ** 6))
-    assert TheRanchBullsMintAndReward.btcMinersBalanceTotal.call() ==   ((7 * 150) * (10 ** 6)) * .90
-    assert TheRanchBullsMintAndReward.dailyRaffleBalance.call() ==  ((7 * 150) * (10 ** 6)) * 0.03
-    assert TheRanchBullsMintAndReward.warChestBalance.call() ==  ((7 * 150) * (10 ** 6)) * 0.05
-    assert TheRanchBullsMintAndReward.USDCRewardsBalanceTotal.call() == ((7 * 150) * (10 ** 6)) * 0.05
+    assert mocked_usdc.balanceOf(TheRanchBullsMintAndReward) == ((7 * 350) * (10 ** 6))
+    assert TheRanchBullsMintAndReward.btcMinersBalanceTotal.call() ==   ((7 * 350) * (10 ** 6)) * .90
+    assert TheRanchBullsMintAndReward.dailyRaffleBalance.call() ==  ((7 * 350) * (10 ** 6)) * 0.03
+    assert TheRanchBullsMintAndReward.warChestBalance.call() ==  ((7 * 350) * (10 ** 6)) * 0.05
+    assert TheRanchBullsMintAndReward.USDCRewardsBalanceTotal.call() == ((7 * 350) * (10 ** 6)) * 0.05
     assert TheRanchBullsMintAndReward.getNumberOfRafflePlayers() == 5
     assert TheRanchBullsMintAndReward.totalSupply() == 7
     assert TheRanchBullsMintAndReward.getRafflePlayer(0) == person_1
@@ -324,6 +324,8 @@ def test_USDC_rewards_covery_maintenance_fees():
 
 
 
+    TheRanchBullsMintAndReward.togglePauseStatus({"from": owner})
+    assert TheRanchBullsMintAndReward.paused.call() == True
 
 
     amount_to_award = 1 * wbtc_decimals

@@ -7,26 +7,17 @@ pragma solidity 0.8.7;
 
 
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
-import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
-import "@chainlink/contracts/src/v0.8/interfaces/KeeperCompatibleInterface.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC2981, IERC165 } from "@openzeppelin/contracts/interfaces/IERC2981.sol";
+import "./TheRanchBullsMintAndReward.sol";
 
 
-error Raffle__UpkeepNotNeeded (uint256 USDCRewardsForAddress, uint256 numPlayers, uint256 raffleMintState);
-error Raffle__RaffleIsProcessing();
-error Minting_ExceedsTotalBulls();
-error Minting_ExceedsMintsPerTx();
-error Minting_CantMintZero();
-error Minting_PublicSaleNotLive();
-error Contract_ContractPaused_CheckSocials();
 
-contract TheRanchBullsFeedingContract is 
+contract TheRanchBullsFeeding is 
     ERC721Enumerable,
     IERC2981,
     Ownable,
@@ -38,14 +29,14 @@ contract TheRanchBullsFeedingContract is
     Counters.Counter private _tokenSupply;
 
     address public usdcTokenContract;
-    address public TheRanchBullsMintAndReward;
+    address public TheRanchBullsMintAndRewardAddress;
     uint public usdcTokenDecimals = 6;
 
     // coreTeam Addresses
     address public coreTeam_1;
 
     // Minting 
-    uint256 public mintingCost = 150;  // USDC.e
+    uint256 public mintingCost = 100;  // USDC.e
     uint public nftTotalCount = 10000;
 
     bool public publicSaleLive = false;
@@ -90,9 +81,9 @@ contract TheRanchBullsFeedingContract is
      * 4. Enters user into the daily raffle if they chose to do so. 
      * 5. If msg.sender elects to enter raffle, 95% goes to btcMinersFund, if they do not, 98% does. 
     */
-    function mint(uint256 _tokenQuantity, bool _enterRaffle) public payable {
-        if (paused) { revert Contract_ContractPaused_CheckSocials();}
-        if (!publicSaleLive) { revert Minting_PublicSaleNotLive();}
+    function mint(uint256 _tokenQuantity) public payable {
+        // if (paused) { revert Contract_ContractPaused_CheckSocials();}
+        // if (!publicSaleLive) { revert Minting_PublicSaleNotLive();}
         if (_tokenQuantity ==  0) { revert Minting_CantMintZero();}
         if (_tokenQuantity > 100) {revert Minting_ExceedsMintsPerTx();}
         if (_tokenSupply.current() + _tokenQuantity > nftTotalCount) {revert Minting_ExceedsTotalBulls();}
@@ -116,17 +107,41 @@ contract TheRanchBullsFeedingContract is
 
 
 
-
-
-
-     // Reward Conctract Interaction
-    function transferUSDCToBullsMintandRewardContract(uint256 _amtToTransfer) internal {
-        require(address(usdcTokenContract) != address(0), "ERROR: The minting token contract must be set first.");
-        require(address(TheRanchBullsMintAndReward) != address(0), "ERROR: The Reward Contract must be set first.");
+    function feedTheBulls(uint _startingIndex, uint _endingIndex, uint256 _totalAmountToDeposit) public payable onlyOwner {
+    
+        require(_startingIndex < _endingIndex,"ERROR: Start must be lower");
+        require(_startingIndex > 0,"ERROR: Index 0 doesn't exist");
+        require(_endingIndex <= _tokenSupply.current(),"ERROR: This touches an non existent NFT ID");
+        require(address(TheRanchBullsMintAndRewardAddress) != address(0), "ERROR: TheRanchBullsMintAndReward Address must be set first.");
+       
+        // Transfer rewardTokens to the contract
         IERC20 tokenContract = IERC20(usdcTokenContract);
-        tokenContract.safeTransfer(TheRanchBullsMintAndReward, _amtToTransfer);
+        //tokenContract.safeTransferFrom(msg.sender, TheRanchBullsMintAndRewardAddress, _totalAmountToDeposit);
+        //tokenContract.safeTransferFrom(TheRanchBullsMintAndRewardAddress,msg.sender, _totalAmountToDeposit);
+        tokenContract.safeTransfer(msg.sender, _totalAmountToDeposit);
+        //tokenContract.safeTransferFrom(address(this), TheRanchBullsMintAndRewardAddress, _totalAmountToDeposit);
+
+
+        uint256 _payoutCut = _totalAmountToDeposit / _tokenSupply.current();
+
+        for( uint i = _startingIndex; i <= _endingIndex; i++) {
+            address _hayBaleOwner = ownerOf(i);
+            if (_hayBaleOwner != address(0)){
+                updatingUscdToBullsMintandRewardContract(_hayBaleOwner, _payoutCut);
+            }
+        }
 
     }
+
+
+
+
+    function updatingUscdToBullsMintandRewardContract(address _recipient, uint256 _amountToAdd) public {
+        TheRanchBullsMintAndReward TRBB = TheRanchBullsMintAndReward(TheRanchBullsMintAndRewardAddress);
+        TRBB.updateUsdcBonusFromAnotherContract(_recipient, _amountToAdd);
+    }
+
+
 
 
 
@@ -213,7 +228,7 @@ contract TheRanchBullsFeedingContract is
     }
 
 
-    function set_minting_price(uint _price) external onlyOwner {
+    function setMintingPrice(uint _price) external onlyOwner {
         require(paused, "ERROR: CANT CHANGE PRICE IF CONTRACT IS NOT PAUSED");
         mintingCost = _price;
     }
@@ -230,7 +245,7 @@ contract TheRanchBullsFeedingContract is
 
     function setTheRanchBullsMintandRewardAddress(address _address) public onlyOwner {
         require(address(_address) != address(0), "ERROR: The mint and reward contract address can't be address(0)");
-        TheRanchBullsMintAndReward = _address;
+        TheRanchBullsMintAndRewardAddress = _address;
     }
 
 

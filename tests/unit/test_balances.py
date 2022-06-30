@@ -140,11 +140,11 @@ def test_balances():
 
 
     assert TheRanchBullsMintAndReward.balanceOf(TheRanchBullsMintAndReward) == 0
-    assert mocked_usdc.balanceOf(TheRanchBullsMintAndReward) == ((5 * 150) * (10 ** 6))
-    assert TheRanchBullsMintAndReward.btcMinersBalanceTotal.call() ==   ((5 * 150) * (10 ** 6)) * .90
-    assert TheRanchBullsMintAndReward.dailyRaffleBalance.call() ==  ((5 * 150) * (10 ** 6)) * 0.03
-    assert TheRanchBullsMintAndReward.warChestBalance.call() ==  ((5 * 150) * (10 ** 6)) * 0.05
-    assert TheRanchBullsMintAndReward.USDCRewardsBalanceTotal.call() == ((5 * 150) * (10 ** 6)) * 0.05
+    assert mocked_usdc.balanceOf(TheRanchBullsMintAndReward) == ((5 * 350) * (10 ** 6))
+    assert TheRanchBullsMintAndReward.btcMinersBalanceTotal.call() ==   ((5 * 350) * (10 ** 6)) * .90
+    assert TheRanchBullsMintAndReward.dailyRaffleBalance.call() ==  ((5 * 350) * (10 ** 6)) * 0.03
+    assert TheRanchBullsMintAndReward.warChestBalance.call() ==  ((5 * 350) * (10 ** 6)) * 0.05
+    assert TheRanchBullsMintAndReward.USDCRewardsBalanceTotal.call() == ((5 * 350) * (10 ** 6)) * 0.05
     
     assert TheRanchBullsMintAndReward.getNumberOfRafflePlayers() == 5
     assert TheRanchBullsMintAndReward.totalSupply() == 5
@@ -155,8 +155,8 @@ def test_balances():
 
     #### get baseline balance of what should be here before any withdraw ####
 
-    assert TheRanchBullsMintAndReward.getUsdcRewardBalanceForAddress({"from":coreTeam1}) == ((5 * 150) * (10 ** 6)) * .01
-    assert TheRanchBullsMintAndReward.getUsdcRewardBalanceForAddress({"from":coreTeam2}) == ((5 * 150) * (10 ** 6)) * .01
+    assert TheRanchBullsMintAndReward.getUsdcRewardBalanceForAddress({"from":coreTeam1}) == ((5 * 350) * (10 ** 6)) * .01
+    assert TheRanchBullsMintAndReward.getUsdcRewardBalanceForAddress({"from":coreTeam2}) == ((5 * 350) * (10 ** 6)) * .01
     assert TheRanchBullsMintAndReward.getUsdcRewardBalanceForAddress({"from":person_1}) == 0
     assert TheRanchBullsMintAndReward.getUsdcRewardBalanceForAddress({"from":person_2}) == 0
     assert TheRanchBullsMintAndReward.getUsdcRewardBalanceForAddress({"from":person_3}) == 0

@@ -262,11 +262,11 @@ def test_PartnerNetwork():
   
     assert TheRanchBullsMintAndReward.totalSupply() == 20
     assert TheRanchBullsMintAndReward.balanceOf(TheRanchBullsMintAndReward) == 0
-    assert mocked_usdc.balanceOf(TheRanchBullsMintAndReward) == ((20 * 150) * (10 ** 6))
-    assert TheRanchBullsMintAndReward.btcMinersBalanceTotal.call() ==   ((20 * 150) * (10 ** 6)) * .90
-    assert TheRanchBullsMintAndReward.dailyRaffleBalance.call() ==  ((20 * 150) * (10 ** 6)) * 0.03
-    assert TheRanchBullsMintAndReward.warChestBalance.call() ==  ((20 * 150) * (10 ** 6)) * 0.05
-    assert TheRanchBullsMintAndReward.USDCRewardsBalanceTotal.call() == ((20 * 150) * (10 ** 6)) * 0.05
+    assert mocked_usdc.balanceOf(TheRanchBullsMintAndReward) == ((20 * 350) * (10 ** 6))
+    assert TheRanchBullsMintAndReward.btcMinersBalanceTotal.call() ==   ((20 * 350) * (10 ** 6)) * .90
+    assert TheRanchBullsMintAndReward.dailyRaffleBalance.call() ==  ((20 * 350) * (10 ** 6)) * 0.03
+    assert TheRanchBullsMintAndReward.warChestBalance.call() ==  ((20 * 350) * (10 ** 6)) * 0.05
+    assert TheRanchBullsMintAndReward.USDCRewardsBalanceTotal.call() == ((20 * 350) * (10 ** 6)) * 0.05
     assert TheRanchBullsMintAndReward.getNumberOfRafflePlayers() == 10
 
     assert TheRanchBullsMintAndReward.getRafflePlayer(0) == person_1
