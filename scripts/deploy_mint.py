@@ -9,6 +9,8 @@ def deploy_mint_contract():
     
     minting_contract = TheRanchBullsMint.deploy(
     
+    owner,
+    owner,
     "ipfs://QmdUXmi3hQo38im7giUQ1G5RWo16KxR4vN4ao/",
     config["networks"][network.show_active()]["vrfCoordinator"],
     config["networks"][network.show_active()]["gasLane"],

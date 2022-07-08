@@ -218,6 +218,7 @@ def test_maintenance_fees():
     assert TheRanchBullsMintAndReward.getRafflePlayer(0) == person_1
 
 
+
     ##################################################################
     ### Set the Reward Token for the contract after deploying WBTC ###
     ##################################################################
@@ -242,7 +243,7 @@ def test_maintenance_fees():
     assert TheRanchBullsMintAndReward.getMaintenanceFeesForTheOwner({"from": coreTeam2}) == 0
     assert TheRanchBullsMintAndReward.getMaintenanceFeesForTheOwner({"from": person_1}) == 0
     assert TheRanchBullsMintAndReward.getMaintenanceFeesForTheOwner({"from": person_2}) == 0
-    assert TheRanchBullsMintAndReward.getMaintenanceFeesForTheOwner({"from": person_3}) == 0
+    assert TheRanchBullsMintAndReward.getMaintenanceFeesForTheOwner({"from": person_3}) ==0
     assert TheRanchBullsMintAndReward.getMaintenanceFeesForTheOwner({"from": person_4}) == 0
     assert TheRanchBullsMintAndReward.getMaintenanceFeesForTheOwner({"from": person_5}) == 0
     assert TheRanchBullsMintAndReward.getMaintenanceFeesForTheOwner({"from": person_6}) == 0
@@ -257,6 +258,7 @@ def test_maintenance_fees():
     assert TheRanchBullsMintAndReward.getMaintenanceFeesStandingForTheOwner({"from": person_5}) == 0
     assert TheRanchBullsMintAndReward.getMaintenanceFeesStandingForTheOwner({"from": person_6}) == 0
     assert TheRanchBullsMintAndReward.getMaintenanceFeesStandingForTheOwner({"from": person_7}) == 0
+
 
     
     TheRanchBullsMintAndReward.setMonthlyMaintenanceFeePerNFT(12*10**6, {"from": multisig})   # 12 dollars in USDC.e
@@ -342,6 +344,8 @@ def test_maintenance_fees():
     reward_tx = TheRanchBullsMintAndReward.rewardBulls(1,{"from": defender_wallet})
     print(reward_tx.info())
 
+
+
     ####################################
     ### UPDATE MAINTENANCE STANDING  ###
     ####################################
@@ -349,21 +353,6 @@ def test_maintenance_fees():
     update_maint_standing = TheRanchBullsMintAndReward.updateMaintenanceStanding({"from":defender_wallet})
 
     print(update_maint_standing.info())
-
-
-
-    #######################################
-    ####         LIQUIDATION        #######
-    #######################################
-
-    if TheRanchBullsMintAndReward.getLiquidatedArrayLength({"from": defender_wallet}) > 0 :
-        liquidate = TheRanchBullsMintAndReward.liquidateOutstandingAccounts({"from": defender_wallet})
-        print(liquidate.info())
-    else: 
-        print("NO LIQUIDATION NEEDED")
-
-
-
 
 
     assert TheRanchBullsMintAndReward.getMaintenanceFeesForTheOwner({"from": coreTeam1}) == 0
@@ -386,6 +375,9 @@ def test_maintenance_fees():
     assert TheRanchBullsMintAndReward.getMaintenanceFeesStandingForTheOwner({"from": person_6}) == 0
     assert TheRanchBullsMintAndReward.getMaintenanceFeesStandingForTheOwner({"from": person_7}) == 0
 
+
+
+    assert TheRanchBullsMintAndReward.getRewardAddressesLength() == 5
 
 
 
@@ -464,30 +456,6 @@ def test_maintenance_fees():
 
     reward_tx = TheRanchBullsMintAndReward.rewardBulls(1,{"from": defender_wallet})
     print(reward_tx.info())
-     
-    ####################################
-    ### UPDATE MAINTENANCE STANDING  ###
-    ####################################
-
-    update_maint_standing = TheRanchBullsMintAndReward.updateMaintenanceStanding({"from":defender_wallet})
-
-    print(update_maint_standing.info())
-
-
-
-    #######################################
-    ####         LIQUIDATION        #######
-    #######################################
-    
-    if TheRanchBullsMintAndReward.getLiquidatedArrayLength({"from": defender_wallet}) > 0 :
-        liquidate = TheRanchBullsMintAndReward.liquidateOutstandingAccounts({"from": defender_wallet})
-        print(liquidate.info())
-    else: 
-        print("NO LIQUIDATION NEEDED")
-
-
-
-
 
 
 
@@ -604,30 +572,6 @@ def test_maintenance_fees():
     reward_tx = TheRanchBullsMintAndReward.rewardBulls(1,{"from": defender_wallet})
     print(reward_tx.info())
 
-    ####################################
-    ### UPDATE MAINTENANCE STANDING  ###
-    ####################################
-
-    update_maint_standing = TheRanchBullsMintAndReward.updateMaintenanceStanding({"from":defender_wallet})
-
-    print(update_maint_standing.info())
-
-
-
-    #######################################
-    ####         LIQUIDATION        #######
-    #######################################
-    
-    if TheRanchBullsMintAndReward.getLiquidatedArrayLength({"from": defender_wallet}) > 0 :
-        liquidate = TheRanchBullsMintAndReward.liquidateOutstandingAccounts({"from": defender_wallet})
-        print(liquidate.info())
-    else: 
-        print("NO LIQUIDATION NEEDED")
-
-
-
-
-
 
     print("#######################################################################################")
     print(f'\t\t\t\t\t ROUND 3')
@@ -685,45 +629,9 @@ def test_maintenance_fees():
 
 
 
-
-
-
-
-
-    ##########################################################################
-    ###############   PERSON 3 PAYS THEIR MAINTENANCE FEES   #################
-    ##########################################################################
-
-    assert mocked_wbtc.balanceOf(person_3) == 0
-
-    usdc_balance =  TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_3})
-    fees_due = TheRanchBullsMintAndReward.getMaintenanceFeesForTheOwner({"from": person_3})
-    if usdc_balance >= fees_due: 
-        pay_maintenance_fees_event = TheRanchBullsMintAndReward.payMaintanenceFees({"from": person_3})
-    else:
-        amount_to_approve = fees_due - usdc_balance
-        mocked_usdc.approve(TheRanchBullsMintAndReward,amount_to_approve, {"from": person_3})
-        pay_maintenance_fees_event = TheRanchBullsMintAndReward.payMaintanenceFees({"from": person_3})
-
-
-    print(pay_maintenance_fees_event.info())
-    assert pay_maintenance_fees_event.events["Transfer"]["value"] == fees_due
-
-
-
-
     ##############################################################################
     ####                               ROUND 4                                ####
     ##############################################################################
-    
-
-
-
-    assert mocked_wbtc.balanceOf(hostingSafe) == 0
-
-
-
-
 
     tx_reset = TheRanchBullsMintAndReward.resetReadyToRewardChecks({"from": multisig})
     print(tx_reset.info())
@@ -792,31 +700,6 @@ def test_maintenance_fees():
     print(reward_tx.info())
 
 
-    ####################################
-    ### UPDATE MAINTENANCE STANDING  ###
-    ####################################
-
-    update_maint_standing = TheRanchBullsMintAndReward.updateMaintenanceStanding({"from":defender_wallet})
-
-    print(update_maint_standing.info())
-
-
-
-    #######################################
-    ####         LIQUIDATION        #######
-    #######################################
-    
-    if TheRanchBullsMintAndReward.getLiquidatedArrayLength({"from": defender_wallet}) > 0 :
-        liquidate = TheRanchBullsMintAndReward.liquidateOutstandingAccounts({"from": defender_wallet})
-        print(liquidate.info())
-        liquidation_transfer = liquidate.events['Transfer']['value']
-    else: 
-        print("NO LIQUIDATION NEEDED")
-
-
-
-
-
     print("#######################################################################################")
     print(f'\t\t\t\t\t ROUND 4')
     print("#######################################################################################")
@@ -833,26 +716,26 @@ def test_maintenance_fees():
 
     assert TheRanchBullsMintAndReward.getMaintenanceFeesForTheOwner({"from": coreTeam1}) == 0
     assert TheRanchBullsMintAndReward.getMaintenanceFeesForTheOwner({"from": coreTeam2}) == 0
-    assert TheRanchBullsMintAndReward.getMaintenanceFeesForTheOwner({"from": person_1}) == 0
-    assert TheRanchBullsMintAndReward.getMaintenanceFeesForTheOwner({"from": person_2}) == 0
-    assert TheRanchBullsMintAndReward.getMaintenanceFeesForTheOwner({"from": person_3}) == (18*10**6) * 3
-    assert TheRanchBullsMintAndReward.getMaintenanceFeesForTheOwner({"from": person_4}) == 0
-    assert TheRanchBullsMintAndReward.getMaintenanceFeesForTheOwner({"from": person_5}) == 0
+    assert TheRanchBullsMintAndReward.getMaintenanceFeesForTheOwner({"from": person_1}) == (12*10**6) + (14*10**6) + (16*10**6) + (18*10**6)
+    assert TheRanchBullsMintAndReward.getMaintenanceFeesForTheOwner({"from": person_2}) == (12*10**6) + (14*10**6) + (16*10**6) + (18*10**6)
+    assert TheRanchBullsMintAndReward.getMaintenanceFeesForTheOwner({"from": person_3}) == ((12*10**6) * 3) + ((14*10**6) * 3) + ((16*10**6)*3) + ((18*10**6) * 3)
+    assert TheRanchBullsMintAndReward.getMaintenanceFeesForTheOwner({"from": person_4}) == (12*10**6) + (14*10**6) + (16*10**6) + (18*10**6)
+    assert TheRanchBullsMintAndReward.getMaintenanceFeesForTheOwner({"from": person_5}) == (12*10**6) + (14*10**6) + (16*10**6)
     assert TheRanchBullsMintAndReward.getMaintenanceFeesForTheOwner({"from": person_6}) == 0
     assert TheRanchBullsMintAndReward.getMaintenanceFeesForTheOwner({"from": person_7}) == (18*10**6)
 
     assert TheRanchBullsMintAndReward.getMaintenanceFeesStandingForTheOwner({"from": coreTeam1}) == 0
     assert TheRanchBullsMintAndReward.getMaintenanceFeesStandingForTheOwner({"from": coreTeam2}) == 0
-    assert TheRanchBullsMintAndReward.getMaintenanceFeesStandingForTheOwner({"from": person_1}) == 0
-    assert TheRanchBullsMintAndReward.getMaintenanceFeesStandingForTheOwner({"from": person_2}) == 0
-    assert TheRanchBullsMintAndReward.getMaintenanceFeesStandingForTheOwner({"from": person_3}) == 1
-    assert TheRanchBullsMintAndReward.getMaintenanceFeesStandingForTheOwner({"from": person_4}) == 0
-    assert TheRanchBullsMintAndReward.getMaintenanceFeesStandingForTheOwner({"from": person_5}) == 0
+    assert TheRanchBullsMintAndReward.getMaintenanceFeesStandingForTheOwner({"from": person_1}) == 4
+    assert TheRanchBullsMintAndReward.getMaintenanceFeesStandingForTheOwner({"from": person_2}) == 4
+    assert TheRanchBullsMintAndReward.getMaintenanceFeesStandingForTheOwner({"from": person_3}) == 4
+    assert TheRanchBullsMintAndReward.getMaintenanceFeesStandingForTheOwner({"from": person_4}) == 4
+    assert TheRanchBullsMintAndReward.getMaintenanceFeesStandingForTheOwner({"from": person_5}) == 4
     assert TheRanchBullsMintAndReward.getMaintenanceFeesStandingForTheOwner({"from": person_6}) == 0
     assert TheRanchBullsMintAndReward.getMaintenanceFeesStandingForTheOwner({"from": person_7}) == 1
 
 
-    assert mocked_wbtc.balanceOf(hostingSafe) == liquidation_transfer
+
     return
 
 
@@ -891,6 +774,145 @@ def test_maintenance_fees():
 
 
 
+    TheRanchBullsMintAndReward.setMonthlyMaintenanceFeePerNFT(18*10**6, {"from": owner})   # 16 dollars in USDC.e for round 2
+    assert TheRanchBullsMintAndReward.calculatedMonthlyMaintenanceFee.call() == 18*10**6
+
+    mocked_wbtc.approve(TheRanchBullsMintAndReward, (amount_to_award * 2), {"from": owner})
+    fund_stockyards_tx = TheRanchBullsMintAndReward.fundAndRewardBulls(1,8,amount_to_award,{"from": owner})
+   
+    assert mocked_wbtc.balanceOf(TheRanchBullsMintAndReward) == amount_to_award + amount_to_award + amount_to_award + amount_to_award
+
+    tx_update_fees = TheRanchBullsMintAndReward.updateMaintenanceFeesForTheMonth({"from": owner})
+    print(tx_update_fees.info())
+
+
+    tx_update_months_behind = TheRanchBullsMintAndReward.updateMonthsBehindMaintenanceFeeDueDate({"from": owner})
+    print(tx_update_months_behind.info())
+
+
+
+
+
+
+    assert TheRanchBullsMintAndReward.totalMaintanenceFeesDue(coreTeam1) == 0
+    assert TheRanchBullsMintAndReward.totalMaintanenceFeesDue(coreTeam2) == 0
+    assert TheRanchBullsMintAndReward.totalMaintanenceFeesDue(person_1) == (12*10**6) + (14*10**6) + (16*10**6) + (18*10**6) 
+    assert TheRanchBullsMintAndReward.totalMaintanenceFeesDue(person_2) == (12*10**6) + (14*10**6) + (16*10**6) + (18*10**6) 
+    assert TheRanchBullsMintAndReward.totalMaintanenceFeesDue(person_3) == ((12*10**6) * 3) + ((14*10**6) * 3) + ((16*10**6) * 3) + ((18*10**6) * 3) 
+    assert TheRanchBullsMintAndReward.totalMaintanenceFeesDue(person_4) == (12*10**6) + (14*10**6) + (16*10**6) + (18*10**6) 
+    assert TheRanchBullsMintAndReward.totalMaintanenceFeesDue(person_5) == (16*10**6) 
+    assert TheRanchBullsMintAndReward.totalMaintanenceFeesDue(person_6) == (16*10**6) + + (18*10**6) 
+    assert TheRanchBullsMintAndReward.totalMaintanenceFeesDue(person_7) == + (18*10**6) 
+
+    assert TheRanchBullsMintAndReward.monthsBehindMaintenanceFeeDueDate(coreTeam1) == 0
+    assert TheRanchBullsMintAndReward.monthsBehindMaintenanceFeeDueDate(coreTeam2) == 0
+    assert TheRanchBullsMintAndReward.monthsBehindMaintenanceFeeDueDate(person_1) == 4
+    assert TheRanchBullsMintAndReward.monthsBehindMaintenanceFeeDueDate(person_2) == 4
+    assert TheRanchBullsMintAndReward.monthsBehindMaintenanceFeeDueDate(person_3) == 4
+    assert TheRanchBullsMintAndReward.monthsBehindMaintenanceFeeDueDate(person_4) == 4
+    assert TheRanchBullsMintAndReward.monthsBehindMaintenanceFeeDueDate(person_5) == 2
+    assert TheRanchBullsMintAndReward.monthsBehindMaintenanceFeeDueDate(person_6) == 2
+    assert TheRanchBullsMintAndReward.monthsBehindMaintenanceFeeDueDate(person_7) == 1
+
+
+    
+    print("#######################################################################################")
+    print(f'\t\t\t\t\t ROUND 4')
+    print("#######################################################################################")
+    print(f'coreTeam_1 total maintenance fees due: {TheRanchBullsMintAndReward.totalMaintanenceFeesDue(coreTeam1)}')
+    print(f'coreTeam_2 total maintenance fees due: {TheRanchBullsMintAndReward.totalMaintanenceFeesDue(coreTeam2)}')
+    print(f'person_1 total maintenance fees due: {TheRanchBullsMintAndReward.totalMaintanenceFeesDue(person_1)}')
+    print(f'person_2 total maintenance fees due: {TheRanchBullsMintAndReward.totalMaintanenceFeesDue(person_2)}')
+    print(f'person_3 total maintenance fees due: {TheRanchBullsMintAndReward.totalMaintanenceFeesDue(person_3)}')
+    print(f'person_4 total maintenance fees due: {TheRanchBullsMintAndReward.totalMaintanenceFeesDue(person_4)}')
+    print(f'person_5 total maintenance fees due: {TheRanchBullsMintAndReward.totalMaintanenceFeesDue(person_5)}')
+    print(f'person_6 total maintenance fees due: {TheRanchBullsMintAndReward.totalMaintanenceFeesDue(person_6)}')
+    print(f'person_7 total maintenance fees due: {TheRanchBullsMintAndReward.totalMaintanenceFeesDue(person_7)}')
+
+
+    print('\n')
+    
+
+    print(f'coreTeam_1 months behind maintenance maint fees: {TheRanchBullsMintAndReward.monthsBehindMaintenanceFeeDueDate(coreTeam1)}')
+    print(f'coreTeam_2 months behind maintenance maint fees: {TheRanchBullsMintAndReward.monthsBehindMaintenanceFeeDueDate(coreTeam2)}')
+    print(f'person_1 months behind maintenance maint fees: {TheRanchBullsMintAndReward.monthsBehindMaintenanceFeeDueDate(person_1)}')
+    print(f'person_2 months behind maintenance maint fees: {TheRanchBullsMintAndReward.monthsBehindMaintenanceFeeDueDate(person_2)}')
+    print(f'person_3 months behind maintenance maint fees: {TheRanchBullsMintAndReward.monthsBehindMaintenanceFeeDueDate(person_3)}')
+    print(f'person_4 months behind maintenance maint fees: {TheRanchBullsMintAndReward.monthsBehindMaintenanceFeeDueDate(person_4)}')
+    print(f'person_5 months behind maintenance maint fees: {TheRanchBullsMintAndReward.monthsBehindMaintenanceFeeDueDate(person_5)}')
+    print(f'person_6 months behind maintenance maint fees: {TheRanchBullsMintAndReward.monthsBehindMaintenanceFeeDueDate(person_6)}')
+    print(f'person_6 months behind maintenance maint fees: {TheRanchBullsMintAndReward.monthsBehindMaintenanceFeeDueDate(person_7)}')
+
+
+    print('\n')
+
+    print(f'liquidation list: {TheRanchBullsMintAndReward.getLiquidatedArray()}')
+
+    print('\n')
+
+    print(f'coreTeam1 WBTC rewards on contract: {TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress({"from": coreTeam1})}')
+    print(f'coreTeam2 WBTC rewards on contract: {TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress({"from": coreTeam2})}')
+    print(f'person_1 WBTC rewards on contract: {TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress({"from": person_1})}')
+    print(f'person_2 WBTC rewards on contract: {TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress({"from": person_2})}')
+    print(f'person_3 WBTC rewards on contract: {TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress({"from": person_3})}')
+    print(f'person_4 WBTC rewards on contract: {TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress({"from": person_4})}')
+    print(f'person_5 WBTC rewards on contract: {TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress({"from": person_5})}')
+    print(f'person_6 WBTC rewards on contract: {TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress({"from": person_6})}')
+    print(f'person_7 WBTC rewards on contract: {TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress({"from": person_7})}')
+
+
+
+
+    ############## LIQUIDATION #############
+    liquidation_event = TheRanchBullsMintAndReward.liquidateOutstandingAccounts({"from": owner})
+
+    print(liquidation_event.info())
+
+
+
+    print("#######################################################################################")
+    print(f'\t\t\t\t\t AFTER LIQUIDATION')
+    print("#######################################################################################")
+    print(f'coreTeam_1 total maintenance fees due: {TheRanchBullsMintAndReward.totalMaintanenceFeesDue(coreTeam1)}')
+    print(f'coreTeam_2 total maintenance fees due: {TheRanchBullsMintAndReward.totalMaintanenceFeesDue(coreTeam2)}')
+    print(f'person_1 total maintenance fees due: {TheRanchBullsMintAndReward.totalMaintanenceFeesDue(person_1)}')
+    print(f'person_2 total maintenance fees due: {TheRanchBullsMintAndReward.totalMaintanenceFeesDue(person_2)}')
+    print(f'person_3 total maintenance fees due: {TheRanchBullsMintAndReward.totalMaintanenceFeesDue(person_3)}')
+    print(f'person_4 total maintenance fees due: {TheRanchBullsMintAndReward.totalMaintanenceFeesDue(person_4)}')
+    print(f'person_5 total maintenance fees due: {TheRanchBullsMintAndReward.totalMaintanenceFeesDue(person_5)}')
+    print(f'person_6 total maintenance fees due: {TheRanchBullsMintAndReward.totalMaintanenceFeesDue(person_6)}')
+    print(f'person_6 total maintenance fees due: {TheRanchBullsMintAndReward.totalMaintanenceFeesDue(person_7)}')
+
+
+    print('\n')
+    
+
+    print(f'coreTeam_1 months behind maintenance maint fees: {TheRanchBullsMintAndReward.monthsBehindMaintenanceFeeDueDate(coreTeam1)}')
+    print(f'coreTeam_2 months behind maintenance maint fees: {TheRanchBullsMintAndReward.monthsBehindMaintenanceFeeDueDate(coreTeam2)}')
+    print(f'person_1 months behind maintenance maint fees: {TheRanchBullsMintAndReward.monthsBehindMaintenanceFeeDueDate(person_1)}')
+    print(f'person_2 months behind maintenance maint fees: {TheRanchBullsMintAndReward.monthsBehindMaintenanceFeeDueDate(person_2)}')
+    print(f'person_3 months behind maintenance maint fees: {TheRanchBullsMintAndReward.monthsBehindMaintenanceFeeDueDate(person_3)}')
+    print(f'person_4 months behind maintenance maint fees: {TheRanchBullsMintAndReward.monthsBehindMaintenanceFeeDueDate(person_4)}')
+    print(f'person_5 months behind maintenance maint fees: {TheRanchBullsMintAndReward.monthsBehindMaintenanceFeeDueDate(person_5)}')
+    print(f'person_6 months behind maintenance maint fees: {TheRanchBullsMintAndReward.monthsBehindMaintenanceFeeDueDate(person_6)}')
+    print(f'person_6 months behind maintenance maint fees: {TheRanchBullsMintAndReward.monthsBehindMaintenanceFeeDueDate(person_7)}')
+
+
+    print('\n')
+
+    print(f'liquidation list: {TheRanchBullsMintAndReward.getLiquidatedArray()}')
+
+    print('\n')
+
+    print(f'coreTeam1 WBTC rewards on contract: {TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress({"from": coreTeam1})}')
+    print(f'coreTeam2 WBTC rewards on contract: {TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress({"from": coreTeam2})}')
+    print(f'person_1 WBTC rewards on contract: {TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress({"from": person_1})}')
+    print(f'person_2 WBTC rewards on contract: {TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress({"from": person_2})}')
+    print(f'person_3 WBTC rewards on contract: {TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress({"from": person_3})}')
+    print(f'person_4 WBTC rewards on contract: {TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress({"from": person_4})}')
+    print(f'person_5 WBTC rewards on contract: {TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress({"from": person_5})}')
+    print(f'person_6 WBTC rewards on contract: {TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress({"from": person_6})}')
+    print(f'person_7 WBTC rewards on contract: {TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress({"from": person_7})}')
 
 
 
@@ -898,6 +920,70 @@ def test_maintenance_fees():
 
 
 
+    
+
+
+
+
+    with pytest.raises(exceptions.VirtualMachineError):
+        withdraw_person_6_tx = TheRanchBullsMintAndReward.withdrawWbtcForWalletAddress({"from": person_6})
+
+    
+
+    ##### Person 7 withdraw, no USDC rewards for them #####
+    
+    usdc_rewards_7 = TheRanchBullsMintAndReward.getUsdcRewardBalanceForAddress({"from": person_7})
+    maint_fees_7 = TheRanchBullsMintAndReward.totalMaintanenceFeesDue(person_7)
+
+    print(f'usdc person_7: {usdc_rewards_7}')
+    print(f'maint_fees_person_7 {maint_fees_7}')
+
+    if usdc_rewards_7 < maint_fees_7:
+        amt_to_approve = maint_fees_7 - usdc_rewards_7
+        mocked_usdc.approve(TheRanchBullsMintAndReward.address, amt_to_approve ,{"from":person_7})
+
+
+    pay_maint_fees_person_7 = TheRanchBullsMintAndReward.payMaintanenceFees({"from": person_7})
+    print(pay_maint_fees_person_7.info())
+
+    assert pay_maint_fees_person_7.events["Transfer"]["value"] == maint_fees_7 - usdc_rewards_7
+
+
+
+
+
+
+
+    print('\n')
+
+    print(f'coreTeam1 WBTC rewards on contract: {TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress({"from": coreTeam1})}')
+    print(f'coreTeam2 WBTC rewards on contract: {TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress({"from": coreTeam2})}')
+    print(f'person_1 WBTC rewards on contract: {TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress({"from": person_1})}')
+    print(f'person_2 WBTC rewards on contract: {TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress({"from": person_2})}')
+    print(f'person_3 WBTC rewards on contract: {TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress({"from": person_3})}')
+    print(f'person_4 WBTC rewards on contract: {TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress({"from": person_4})}')
+    print(f'person_5 WBTC rewards on contract: {TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress({"from": person_5})}')
+    print(f'person_6 WBTC rewards on contract: {TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress({"from": person_6})}')
+    print(f'person_7 WBTC rewards on contract: {TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress({"from": person_7})}')
+
+
+
+
+
+
+
+    
+
+
+
+
+
+
+    
+    
+    
+
+   
 
 
 

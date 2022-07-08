@@ -1,9 +1,10 @@
 from curses import use_env
+from curses.ascii import FF
 from distutils import core
 from unittest import mock
 from pyrsistent import v
 from scripts.helpful_scripts import get_account, get_contract, fund_with_link, LOCAL_BLOCKCHAIN_ENVIRONMENTS
-from brownie import TheRanchBullsMintAndReward, MockedTokens_USDC, MockedTokens_WBTC, network, config, MockV3Aggregator, accounts, exceptions, chain
+from brownie import TheRanchBullsMintReward, MockedTokens_USDC, MockedTokens_WBTC, network, config, MockV3Aggregator, accounts, exceptions, chain
 from scripts.deploy_mintAndReward import deploy_contract
 from scripts.deploy_v2mocks import deploy_v2mocks
 from web3 import Web3
@@ -18,17 +19,7 @@ import math
 
 def test_blacklist_wbtc():
 
-    fund_deposited = 80_000
 
-    #owner = accounts[0]
-    owner = get_account()
-    TheRanchBullsMintAndReward = deploy_contract()
-
-    ### set the address on each contract for to reference other contract ####
-
- 
-    # assert contract_balance == 0
-    
     person_1 = accounts[1]
     person_2 = accounts[2]
     person_3 = accounts[3]
@@ -59,75 +50,49 @@ def test_blacklist_wbtc():
     person_28 = accounts[28]
     person_29 = accounts[29]
     person_30 = accounts[30]
-    person_31 = accounts[34]
 
+    coinbase = accounts[10001]
+    defender_wallet = accounts[10002]
+    multisig = accounts[10003]
 
-    coinbase = accounts[31]
-    coreTeam1 = accounts[32]
-    coreTeam2 = accounts[33]
-
-
-    people = {
-        person_1: 'person_1',
-        person_2: 'person_2',
-        person_3: 'person_3',
-        person_4: 'person_4',
-        person_5: 'person_5',
-        person_6: 'person_6',
-        person_7: 'person_7',
-        person_8: 'person_8',
-        person_9: 'person_9',
-        person_10: 'person_10',
-        person_11: 'person_11',
-        person_12: 'person_12',
-        person_13: 'person_13',
-        person_14: 'person_14',
-        person_15: 'person_15',
-        person_16: 'person_16',
-        person_17: 'person_17',
-        person_18: 'person_18',
-        person_19: 'person_19',
-        person_20: 'person_20',
-        person_21: 'person_21',
-        person_22: 'person_22',
-        person_23: 'person_23',
-        person_24: 'person_24',
-        person_25: 'person_25',
-        person_26: 'person_26',
-        person_27: 'person_27',
-        person_28: 'person_28',
-        person_29: 'person_29',
-        person_30: 'person_30',
-        person_31: 'person_31',
-    }
+    btcMinersSafe = accounts[10006]
+    hostingSafe = accounts[10007]
 
 
 
-  
-    starting_balance_of_each_account = 50_000 * 10**18
 
 
-    mocked_usdc = MockedTokens_USDC.deploy(500_000 * 10**6, {"from": coinbase})
+    TheRanchBullsMintAndReward = deploy_contract()
+    deployer = TheRanchBullsMintAndReward.owner.call()
+
+    coreTeam1 = TheRanchBullsMintAndReward.coreTeam_1.call()
+    coreTeam2 = TheRanchBullsMintAndReward.coreTeam_2.call()
 
 
-    #######################################################
-    #### set the token to use for minting and rewarding ###
-    #######################################################
-
-   
-    TheRanchBullsMintAndReward.setUsdcTokenAddress(mocked_usdc,{"from": owner})
-    TheRanchBullsMintAndReward.setWbtcTokenAddress(mocked_usdc,{"from": owner})
-    
-    # print(f'usdc address : {mocked_usdc.address}')
-    # print(f'dai address :  {mocked_dai.address}')
-    # print(f'TotalSupplyOfTokens: {mocked_tokens_usdc.totalSupply()/10**18}')
-    print(f'CoinbaseMock USDC Balance: {mocked_usdc.balanceOf(coinbase) / 10**6}')
  
-    print(f'TheRanchBullsMintAndReward_ETH_balance: {TheRanchBullsMintAndReward.balanceOf(TheRanchBullsMintAndReward) /10**18}')
-  
-    assert (mocked_usdc.balanceOf(coinbase) / 10**6) == 500_000
+    ################################################################
+    ## assert the deployer can transfer ownership of the contract ##
+    ################################################################
+
+    tx_transfer_ownership = TheRanchBullsMintAndReward.transferOwnership(multisig)
+    print(tx_transfer_ownership.info())
+
+    assert TheRanchBullsMintAndReward.owner.call() != deployer
+    assert TheRanchBullsMintAndReward.owner.call() == multisig
 
 
+
+
+    assert TheRanchBullsMintAndReward.paused.call() == True
+
+
+    mocked_usdc = MockedTokens_USDC.deploy(1_000_000_000 * 10**6, {"from": coinbase})
+    mocked_wbtc = MockedTokens_WBTC.deploy(10 * 10**8, {"from": multisig})
+
+    TheRanchBullsMintAndReward.setUsdcTokenAddress(mocked_usdc,{"from": multisig})
+    TheRanchBullsMintAndReward.setWbtcTokenAddress(mocked_wbtc,{"from": multisig})
+    TheRanchBullsMintAndReward.setBaseURI("ipfs://aldkfjasdpofe", {"from": multisig})
+    TheRanchBullsMintAndReward.setSafeAddresses(hostingSafe,btcMinersSafe,{"from": multisig})
 
  
     #########################################################
@@ -191,17 +156,11 @@ def test_blacklist_wbtc():
     mocked_usdc.transfer(person_30, 10_000 * 10**6, {"from": coinbase})
 
 
-
-    ### set coreTeam wallets ###
-    TheRanchBullsMintAndReward.setCoreTeam_1_Address(coreTeam1,{"from": owner})
-    TheRanchBullsMintAndReward.setCoreTeam_2_Address(coreTeam2,{"from": owner})
-
- 
-    # Owner unpauses contracts
-    TheRanchBullsMintAndReward.togglePauseStatus({"from": owner})
-    
+    change_pause_status = TheRanchBullsMintAndReward.setPauseStatus(False, {"from": multisig})
+  
     #owner starts the public sale
-    TheRanchBullsMintAndReward.togglePublicSaleStatus({"from": owner})
+    TheRanchBullsMintAndReward.togglePublicSaleStatus({"from": multisig})
+
 
 
    
@@ -265,70 +224,75 @@ def test_blacklist_wbtc():
     TheRanchBullsMintAndReward.mint(amt,raffleEntryBool,{"from": person_11, "value":  price_needed(amt)})
     
 
-    ###################################################################################
-    ####   Owner withdraws BTC Miners Fund and invests funds into Compass Mining   ####
-    ###################################################################################
-    assert mocked_usdc.balanceOf(owner) / 10**6 == 0
-
-    #### withdraw btcMinerAmt
-    btcminer_withdraw_tx = TheRanchBullsMintAndReward.withdrawBtcMinerBalance({"from": owner})
-    print(btcminer_withdraw_tx.info())
-
-    assert TheRanchBullsMintAndReward.btcMinersBalanceTotal.call() == 0
-
-
-
-    ##################################################################
-    ### Set the Reward Token for the contract after deploying WBTC ###
-    ##################################################################
-
-    ## deploy the wbtc contract so the owner now has wbtc in their wallet
-    wbtc_decimals = 10 ** 8
-    wbtc_to_start = 10
-    mocked_wbtc = MockedTokens_WBTC.deploy(wbtc_to_start * wbtc_decimals, {"from": owner})
-    TheRanchBullsMintAndReward.setWbtcTokenAddress(mocked_wbtc, {"from": owner})
-
-
-    starting_owner_balance_wbtc = mocked_wbtc.balanceOf(owner)
-    assert starting_owner_balance_wbtc == wbtc_to_start * wbtc_decimals
-    assert mocked_wbtc.balanceOf(TheRanchBullsMintAndReward) == 0
-
-    #### send satoshi values to all 5 stockyards ###
-
-    amount_to_send = 1 * wbtc_decimals
-  
- 
-
-    print(f'money to approve : {amount_to_send}')
-
-
-
-    TheRanchBullsMintAndReward.togglePauseStatus({"from": owner})
-    assert TheRanchBullsMintAndReward.paused.call() == True
-
-    mocked_wbtc.approve(TheRanchBullsMintAndReward,amount_to_send, {"from":owner})
-    fund_stockyards_tx = TheRanchBullsMintAndReward.fundAndRewardBulls(1,15,amount_to_send,{"from": owner})
-    ##print(fund_stockyards_tx.info())
-    assert mocked_wbtc.balanceOf(TheRanchBullsMintAndReward) == amount_to_send 
-
-    TheRanchBullsMintAndReward.togglePauseStatus({"from": owner})
-    assert TheRanchBullsMintAndReward.paused.call() == False
 
 
 
 
+    #################################################################
+    ######### owner needs to set the stockyard information  ###########
+    #################################################################
 
-    ##############################################
-    ### TEST WITHDRAW FOR WBTC FROM PERSON 2 #####
-    ##############################################
+    tx_set_stockyard = TheRanchBullsMintAndReward.setStockYardInfo(1,1,15, {"from": multisig})
+   
+
+
+    #################################################################
+    ######### owner needs to send funds and set the pay per nft  ####
+    #################################################################
+
+    assert TheRanchBullsMintAndReward.payPerNftForTheMonth.call() == 0
+
+
+    total_to_deposit = 1 * 10 ** 8 
+
+    mocked_wbtc.approve(TheRanchBullsMintAndReward,total_to_deposit, {"from":multisig})
+    fundAndSetPayPerNFT = TheRanchBullsMintAndReward.setPayPerNftForTheMonthAndCurrentRewardingDate(total_to_deposit,'0322',{"from": multisig})
+    print(fundAndSetPayPerNFT.info())
+
+
+    print(TheRanchBullsMintAndReward.payPerNftForTheMonth.call())
+
+    expected_amt_per_nft = ((total_to_deposit * .90) / TheRanchBullsMintAndReward.totalSupply())
+    assert TheRanchBullsMintAndReward.payPerNftForTheMonth.call() == expected_amt_per_nft
 
 
 
+    ###########################################################
+    ######### owner updates the maintenance fees variable ####
+    ###########################################################
 
-    ##########################################################################
-    #####      Let person_2 claim their rewards and check balances       #####
-    ##########################################################################
-    reward_contract_balance_wbtc_before_tx = mocked_wbtc.balanceOf(TheRanchBullsMintAndReward)
+    TheRanchBullsMintAndReward.setMonthlyMaintenanceFeePerNFT(12*10**6, {"from": multisig})   # 12 dollars in USDC.e for round 2
+    assert TheRanchBullsMintAndReward.calculatedMonthlyMaintenanceFee.call() == 12*10**6
+
+    #### set the defender wallet up to allow this ###
+    TheRanchBullsMintAndReward.setDefenderRole(defender_wallet, True, {"from": multisig})
+
+
+    ### call the readyToReward function to begin the rewarding process ###
+    TheRanchBullsMintAndReward.setReadyToReward({"from": multisig})
+
+
+    
+
+
+    ########################################################################################
+    ######### Autotasks handle the payout as the defender wallet can do the rest ###########
+    ########################################################################################
+
+    ### pause the contract ###
+    TheRanchBullsMintAndReward.setPauseStatus(True, {"from": defender_wallet})
+
+   
+    assert TheRanchBullsMintAndReward.stockyardsThatHaveBeenRewardedCount.call() == 0
+
+
+    #######################
+    ###      REWARD     ###
+    #######################
+
+
+    reward_tx = TheRanchBullsMintAndReward.rewardBulls(1,{"from": defender_wallet})
+    print(reward_tx.info())
 
 
 
@@ -337,53 +301,82 @@ def test_blacklist_wbtc():
     # make sure person_2 currently has zero wbtc in their own wallet
     assert mocked_wbtc.balanceOf(person_2) == 0 
 
-    person_1_award_balance_before_tx = TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress({"from": person_1})
-    person_2_award_balance_before_tx = TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress({"from": person_2})
-    person_3_award_balance_before_tx = TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress({"from": person_3})
-    person_4_award_balance_before_tx = TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress({"from": person_4})
-    person_5_award_balance_before_tx = TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress({"from": person_5})
-    person_6_award_balance_before_tx = TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress({"from": person_6})
-    person_7_award_balance_before_tx = TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress({"from": person_7})
-    person_8_award_balance_before_tx = TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress({"from": person_8})
-    person_9_award_balance_before_tx = TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress({"from": person_9})
-    person_10_award_balance_before_tx = TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress({"from": person_10})
-    person_11_award_balance_before_tx = TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress({"from": person_11})
-    person_12_award_balance_before_tx = TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress({"from": person_12})
-    person_13_award_balance_before_tx = TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress({"from": person_13})
-    person_14_award_balance_before_tx = TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress({"from": person_14})
-    person_15_award_balance_before_tx = TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress({"from": person_15})
-    person_16_award_balance_before_tx = TheRanchBullsMintAndReward.getWbtcRewardBalanceForAddress({"from": person_16})
+    person_1_award_balance_before_tx = TheRanchBullsMintAndReward.getWbtcBalanceForTheOwner({"from": person_1})
+    person_2_award_balance_before_tx = TheRanchBullsMintAndReward.getWbtcBalanceForTheOwner({"from": person_2})
+    person_3_award_balance_before_tx = TheRanchBullsMintAndReward.getWbtcBalanceForTheOwner({"from": person_3})
+    person_4_award_balance_before_tx = TheRanchBullsMintAndReward.getWbtcBalanceForTheOwner({"from": person_4})
+    person_5_award_balance_before_tx = TheRanchBullsMintAndReward.getWbtcBalanceForTheOwner({"from": person_5})
+    person_6_award_balance_before_tx = TheRanchBullsMintAndReward.getWbtcBalanceForTheOwner({"from": person_6})
+    person_7_award_balance_before_tx = TheRanchBullsMintAndReward.getWbtcBalanceForTheOwner({"from": person_7})
+    person_8_award_balance_before_tx = TheRanchBullsMintAndReward.getWbtcBalanceForTheOwner({"from": person_8})
+    person_9_award_balance_before_tx = TheRanchBullsMintAndReward.getWbtcBalanceForTheOwner({"from": person_9})
+    person_10_award_balance_before_tx = TheRanchBullsMintAndReward.getWbtcBalanceForTheOwner({"from": person_10})
+    person_11_award_balance_before_tx = TheRanchBullsMintAndReward.getWbtcBalanceForTheOwner({"from": person_11})
+    person_12_award_balance_before_tx = TheRanchBullsMintAndReward.getWbtcBalanceForTheOwner({"from": person_12})
+    person_13_award_balance_before_tx = TheRanchBullsMintAndReward.getWbtcBalanceForTheOwner({"from": person_13})
+    person_14_award_balance_before_tx = TheRanchBullsMintAndReward.getWbtcBalanceForTheOwner({"from": person_14})
+    person_15_award_balance_before_tx = TheRanchBullsMintAndReward.getWbtcBalanceForTheOwner({"from": person_15})
+    person_16_award_balance_before_tx = TheRanchBullsMintAndReward.getWbtcBalanceForTheOwner({"from": person_16})
    
- 
-   #####################################
+    
+   
+    ################################################
     ####  Person 5 withdraws their WBTC balance #####
     #################################################
 
-    assert TheRanchBullsMintAndReward.paused.call() == False
-    TheRanchBullsMintAndReward.togglePauseStatus()
+
+
     assert TheRanchBullsMintAndReward.paused.call() == True
      
     with pytest.raises(exceptions.VirtualMachineError):
-        TheRanchBullsMintAndReward.withdrawWbtcForWalletAddress({"from": person_2})
-    
-    TheRanchBullsMintAndReward.togglePauseStatus()
+        rewards_withdraw_event = TheRanchBullsMintAndReward.withdrawWbtcForWalletAddress({"from": person_5})
+
+
+
+    change_pause_status = TheRanchBullsMintAndReward.setPauseStatus(False, {"from": multisig})
     assert TheRanchBullsMintAndReward.paused.call() == False
-    
-    
-    assert TheRanchBullsMintAndReward.getBlacklistedStatus(person_2) == False
 
-    TheRanchBullsMintAndReward.blacklistMalicious(person_2, True)   ## blacklist person_2
+    assert TheRanchBullsMintAndReward.getBlacklistedStatus(person_5) == False
+    
 
-    assert TheRanchBullsMintAndReward.getBlacklistedStatus(person_2) == True
+    TheRanchBullsMintAndReward.blacklistMalicious(person_5, True, {"from": multisig})   ## blacklist person_5
+
+
+    assert TheRanchBullsMintAndReward.getBlacklistedStatus(person_5) == True
     
     with pytest.raises(exceptions.VirtualMachineError):
-        TheRanchBullsMintAndReward.withdrawWbtcForWalletAddress({"from": person_2})
+        rewards_withdraw_event = TheRanchBullsMintAndReward.withdrawWbtcForWalletAddress({"from": person_5})
+    
+    
+    
+    TheRanchBullsMintAndReward.blacklistMalicious(person_5, False, {"from": multisig})
+    assert TheRanchBullsMintAndReward.getBlacklistedStatus(person_5) == False
 
 
 
-    TheRanchBullsMintAndReward.blacklistMalicious(person_2, False)
-    assert TheRanchBullsMintAndReward.getBlacklistedStatus(person_2) == False
 
-    withdraw_person_2 = TheRanchBullsMintAndReward.withdrawWbtcForWalletAddress({"from": person_2})
+    
 
+
+
+    usdc_balance =  TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_5})
+    fees_due = TheRanchBullsMintAndReward.getMaintenanceFeesForTheOwner({"from": person_5})
+    if usdc_balance >= fees_due: 
+        pay_maintenance_fees_event = TheRanchBullsMintAndReward.payMaintanenceFees({"from": person_5})
+    else:
+        amount_to_approve = fees_due - usdc_balance
+        mocked_usdc.approve(TheRanchBullsMintAndReward,amount_to_approve, {"from": person_5})
+        pay_maintenance_fees_event = TheRanchBullsMintAndReward.payMaintanenceFees({"from": person_5})
+
+
+    print(pay_maintenance_fees_event.info())
+
+    rewards_withdraw_event = TheRanchBullsMintAndReward.withdrawWbtcForWalletAddress({"from": person_5})
+
+    print(rewards_withdraw_event.info())
+
+
+
+
+    assert TheRanchBullsMintAndReward.getWbtcBalanceForTheOwner({"from":person_5}) == 0
 

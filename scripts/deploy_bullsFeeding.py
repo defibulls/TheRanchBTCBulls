@@ -4,15 +4,14 @@ import time
 
 
 
-def deploy_feeding_contract():
-    owner = get_account()
+def deploy_feeding_contract(_deployer):
 
     feeding_contract = TheRanchBullsFeeding.deploy(
     
 
     "ipfs://QmYnZxzLzCuuSE4gZK6gqGdxzDH9JRy2U3VS2aEEHuSqVj/",
 
-    {"from": owner},
+    {"from": _deployer},
     publish_source=config["networks"][network.show_active()]["verify"]
     )
     print("Deployed TheRanchBullsFeeding Contract!")

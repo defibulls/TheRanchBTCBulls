@@ -18,7 +18,7 @@ import math
 
 
 
-def test_feedingContract_works():
+def test_feedingContract_works_with_partner_set():
 
 
     person_1 = accounts[1]
@@ -156,6 +156,10 @@ def test_feedingContract_works():
     mocked_usdc.approve(TheRanchBullsMintAndReward.address, price_needed(3),{"from":person_3})
     TheRanchBullsMintAndReward.mint(3,raffleEntryBool,{"from": person_3, "value":  price_needed(amt)})
 
+
+    TheRanchBullsMintAndReward.setPartnerAddress(person_3,{"from": person_4})
+    assert TheRanchBullsMintAndReward.myPartner(person_4) == person_3
+
     mocked_usdc.approve(TheRanchBullsMintAndReward.address, price_needed(amt),{"from":person_4})
     TheRanchBullsMintAndReward.mint(amt,raffleEntryBool,{"from": person_4, "value":  price_needed(amt)})
 
@@ -193,7 +197,7 @@ def test_feedingContract_works():
 
     assert TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_1}) == ((1 * 350) * (10 ** 6)) * 0.02
     assert TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_2}) == 0
-    assert TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_3}) == 0
+    assert TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_3}) == ((1 * 350) * (10 ** 6)) * 0.02
     assert TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_4}) == 0
     assert TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_5}) == 0
     assert TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_6}) == 0
@@ -207,6 +211,7 @@ def test_feedingContract_works():
 
     TheRanchBullsMintAndReward.withdrawUsdcRewardBalance({"from": coreTeam1})
     TheRanchBullsMintAndReward.withdrawUsdcRewardBalance({"from": coreTeam2})
+    TheRanchBullsMintAndReward.withdrawUsdcRewardBalance({"from": person_3})
 
 
 
@@ -272,6 +277,7 @@ def test_feedingContract_works():
 
     assert TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": coreTeam1}) == 0
     assert TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": coreTeam2}) == 0
+    assert TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_3}) == 0
 
     pre_hostingSafe_balance = TheRanchBullsMintAndReward.hostingSafeBalance.call()
 
@@ -280,8 +286,8 @@ def test_feedingContract_works():
 
 
 
-    # expected cuts for coreteam1 50,50,50,50 = 200
-    # expected cuts for coreteam2 50,50,50,50 = 200
+    # expected cuts for coreteam1 0,50,50,50 = 150
+    # expected cuts for coreteam2 0,50,50,50 = 150
     # hosting safe should get 20% of the last two people at 200,200 so that would be 400 
 
 
@@ -299,8 +305,8 @@ def test_feedingContract_works():
 
 
 
-    assert TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": coreTeam1}) == 200
-    assert TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": coreTeam2}) == 200
+    assert TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": coreTeam1}) == 150
+    assert TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": coreTeam2}) == 150
     assert TheRanchBullsMintAndReward.hostingSafeBalance.call() == pre_hostingSafe_balance + 400
 
 
@@ -311,8 +317,8 @@ def test_feedingContract_works():
 
     assert TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_1}) == ((1 * 350) * (10 ** 6)) * 0.02
     assert TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_2}) == 0
-    assert TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_3}) == 0
-    assert TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_4}) == 900
+    assert TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_3}) == 50
+    assert TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_4}) == 950
     assert TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_5}) == 900
     assert TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_6}) == 700
     assert TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_7}) == 700

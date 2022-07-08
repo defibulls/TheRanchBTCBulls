@@ -14,7 +14,7 @@ def deploy_wbtc():
     #owner = accounts[0]
     owner = get_account()
 
-    mocked_wbtc= MockedTokens_WBTC.deploy(5 * 10 ** 8, {"from": owner})
+    mocked_wbtc= MockedTokens_WBTC.deploy(15 * 10 ** 8, {"from": owner})
 
 
 

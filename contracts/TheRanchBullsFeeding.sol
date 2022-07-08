@@ -13,7 +13,7 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC2981, IERC165 } from "@openzeppelin/contracts/interfaces/IERC2981.sol";
-import "./TheRanchBullsMintAndReward.sol";
+import "./TheRanchBullsMintReward.sol";
 
 
 
@@ -29,7 +29,7 @@ contract TheRanchBullsFeeding is
     Counters.Counter private _tokenSupply;
 
     address public usdcTokenContract;
-    address public TheRanchBullsMintAndRewardAddress;
+    address public TheRanchBullsMintRewardAddress;
     uint public usdcTokenDecimals = 6;
 
     // coreTeam Addresses
@@ -54,10 +54,10 @@ contract TheRanchBullsFeeding is
    
 
 
-    event fundAndRewardEvent(
+    event feedBullsEvent(
             uint256 indexed _totalAmountDeposit,
-            uint indexed _startingIndex,
-            uint indexed _endingIndex
+            uint indexed _totalCountOfNfts,
+            uint indexed _payPerNFT
     );
 
   
@@ -84,8 +84,7 @@ contract TheRanchBullsFeeding is
     function mint(uint256 _tokenQuantity) public payable {
         // if (paused) { revert Contract_ContractPaused_CheckSocials();}
         // if (!publicSaleLive) { revert Minting_PublicSaleNotLive();}
-        if (_tokenQuantity ==  0) { revert Minting_CantMintZero();}
-        if (_tokenQuantity > 100) {revert Minting_ExceedsMintsPerTx();}
+
         if (_tokenSupply.current() + _tokenQuantity > nftTotalCount) {revert Minting_ExceedsTotalBulls();}
 
 
@@ -106,13 +105,52 @@ contract TheRanchBullsFeeding is
     }
 
 
+    // // ONE BY ONE CALL 
+
+    // function feedTheBulls(uint _startingIndex, uint _endingIndex, uint256 _totalAmountToDeposit) public payable onlyOwner {
+    
+    //     require(_startingIndex < _endingIndex,"ERROR: Start must be lower");
+    //     require(_startingIndex > 0,"ERROR: Index 0 doesn't exist");
+    //     require(_endingIndex <= _tokenSupply.current(),"ERROR: This touches an non existent NFT ID");
+    //     require(address(TheRanchBullsMintRewardAddress) != address(0), "ERROR: TheRanchBullsMintAndReward Address must be set first.");
+       
+    //     // Transfer rewardTokens to the contract
+    //     IERC20 tokenContract = IERC20(usdcTokenContract);
+    //     //tokenContract.safeTransferFrom(msg.sender, TheRanchBullsMintAndRewardAddress, _totalAmountToDeposit);
+    //     //tokenContract.safeTransferFrom(TheRanchBullsMintAndRewardAddress,msg.sender, _totalAmountToDeposit);
+    //     tokenContract.safeTransfer(msg.sender, _totalAmountToDeposit);
+    //     //tokenContract.safeTransferFrom(address(this), TheRanchBullsMintAndRewardAddress, _totalAmountToDeposit);
+
+
+    //     uint256 _payoutCut = _totalAmountToDeposit / _tokenSupply.current();
+
+    //     for( uint i = _startingIndex; i <= _endingIndex; i++) {
+    //         address _hayBaleOwner = ownerOf(i);
+    //         if (_hayBaleOwner != address(0)){
+    //             updatingUsdcToBullsMintandRewardContract(_hayBaleOwner, _payoutCut);
+    //         }
+    //     }
+
+    // }
+
+
+    // function updatingUsdcToBullsMintandRewardContract(address _recipient, uint256 _amountToAdd) public {
+    //     TheRanchBullsMintReward TRBB = TheRanchBullsMintReward(TheRanchBullsMintRewardAddress);
+    //     TRBB.updateUsdcBonusFromAnotherContract(_recipient, _amountToAdd);
+    // }
+
+
+
+
+
+    // pass over an array to the other contract to work with
 
     function feedTheBulls(uint _startingIndex, uint _endingIndex, uint256 _totalAmountToDeposit) public payable onlyOwner {
     
         require(_startingIndex < _endingIndex,"ERROR: Start must be lower");
         require(_startingIndex > 0,"ERROR: Index 0 doesn't exist");
         require(_endingIndex <= _tokenSupply.current(),"ERROR: This touches an non existent NFT ID");
-        require(address(TheRanchBullsMintAndRewardAddress) != address(0), "ERROR: TheRanchBullsMintAndReward Address must be set first.");
+        require(address(TheRanchBullsMintRewardAddress) != address(0), "ERROR: TheRanchBullsMintAndReward Address must be set first.");
        
         // Transfer rewardTokens to the contract
         IERC20 tokenContract = IERC20(usdcTokenContract);
@@ -122,24 +160,31 @@ contract TheRanchBullsFeeding is
         //tokenContract.safeTransferFrom(address(this), TheRanchBullsMintAndRewardAddress, _totalAmountToDeposit);
 
 
-        uint256 _payoutCut = _totalAmountToDeposit / _tokenSupply.current();
 
+        address[] memory haybaleOwners = new address[](_endingIndex); 
+   
+        uint256 _payoutCut = _totalAmountToDeposit / _tokenSupply.current();
+        uint _counter;
         for( uint i = _startingIndex; i <= _endingIndex; i++) {
             address _hayBaleOwner = ownerOf(i);
             if (_hayBaleOwner != address(0)){
-                updatingUscdToBullsMintandRewardContract(_hayBaleOwner, _payoutCut);
+                haybaleOwners[_counter] = _hayBaleOwner;
+                _counter++;
             }
         }
 
+        updatingUsdcToBullsMintandRewardContract(haybaleOwners, _payoutCut);
+
+        emit feedBullsEvent(_totalAmountToDeposit, ((_endingIndex - _startingIndex)+1), _payoutCut);
     }
 
 
-
-
-    function updatingUscdToBullsMintandRewardContract(address _recipient, uint256 _amountToAdd) public {
-        TheRanchBullsMintAndReward TRBB = TheRanchBullsMintAndReward(TheRanchBullsMintAndRewardAddress);
-        TRBB.updateUsdcBonusFromAnotherContract(_recipient, _amountToAdd);
+    function updatingUsdcToBullsMintandRewardContract(address[] memory _recipients, uint256 _amountToAdd) public {
+        TheRanchBullsMintReward TRBB = TheRanchBullsMintReward(TheRanchBullsMintRewardAddress);
+        TRBB.updateUsdcBonusFromAnotherContract(_recipients, _amountToAdd);
     }
+
+    
 
 
 
@@ -243,9 +288,9 @@ contract TheRanchBullsFeeding is
     }
 
 
-    function setTheRanchBullsMintandRewardAddress(address _address) public onlyOwner {
+    function setTheRanchBullsMintRewardAddress(address _address) public onlyOwner {
         require(address(_address) != address(0), "ERROR: The mint and reward contract address can't be address(0)");
-        TheRanchBullsMintAndRewardAddress = _address;
+        TheRanchBullsMintRewardAddress = _address;
     }
 
 

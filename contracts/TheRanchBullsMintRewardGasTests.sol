@@ -5,11 +5,9 @@ pragma solidity 0.8.7;
 🅣🅗🅔🅡🅐🅝🅒🅗_🅑🅤🅛🅛🅢_➋⓿➋➋
 */
 
-
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
 import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
-import "@chainlink/contracts/src/v0.8/interfaces/KeeperCompatibleInterface.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
@@ -18,22 +16,32 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC2981, IERC165 } from "@openzeppelin/contracts/interfaces/IERC2981.sol";
 
 
-error Raffle__UpkeepNotNeeded (uint256 USDCRewardsForAddress, uint256 numPlayers, uint256 raffleMintState);
-error Raffle__RaffleIsProcessing();
 error Minting_ExceedsTotalBulls();
-error Minting_ExceedsMintsPerTx();
-error Minting_CantMintZero();
 error Minting_PublicSaleNotLive();
-error Contract_ContractPaused_CheckSocials();
+error Minting_IsZeroOrBiggerThanTen();
+error Contract_CurrentlyPaused_CheckSocials();
+error Pause_MustSetAllVariablesFirst();
+error Pause_BaseURIMustBeSetFirst();
+error Pause_MustBePaused();
+error Rewarding_NotReady();
+error Maintenance_UpdatingNotReady();
+error Liquidation_NothingToDo();
+error BadLogicInputParameter();
+error Stockyard_IsNotSetYet();
+error Partner_NotAllowed();
+error Address_CantBeAddressZero();
+error Blacklisted();
+error Rewarding_NoBalanceToWithdraw();
 
-contract TheRanchBullsMintAndReward is 
+contract TheRanchBullsMintRewardGasTests is 
     VRFConsumerBaseV2,
-    KeeperCompatibleInterface,
     ERC721Enumerable,
     IERC2981,
     Ownable,
     ReentrancyGuard {
-    
+
+        
+   
     using Strings for uint256;
     using SafeERC20 for IERC20;
     using Counters for Counters.Counter;
@@ -50,9 +58,13 @@ contract TheRanchBullsMintAndReward is
     uint256 public coreTeam_1_percent = 8;
     uint256 public coreTeam_2_percent = 2;
 
+    //gnosis-safe address 
+    address public hostingSafe;
+    address public btcMinersSafe;
+
     // Minting 
     uint256 public mintingCost = 350;  // USDC.e
-    uint public bulls_in_existence = 10000;
+    uint public constant maxSupply = 10000;
 
     bool public publicSaleLive = false;
     bool public paused = true;
@@ -65,19 +77,16 @@ contract TheRanchBullsMintAndReward is
     mapping(address => address) public myPartner;   // partner mapping; msg.sender  ==> who referred them
     mapping(address => uint256) public myParnterNetworkTeam;   // partner mapping; msg.sender  ==> who referred them
 
-   
-   
-     // Contract Balances
-    uint256 public btcMinersBalanceTotal;
-    uint256 public warChestBalance;     // reserve kept for hosting fees and will be used if people don't pay their maintenance fees on time
-    uint256 public USDCRewardsBalanceTotal;    // amount held within contract for referrals and raffle balance 
+    // Contract Balances
+    uint256 public btcMinersSafeBalance;
+    uint256 public hostingSafeBalance;     // reserve kept for hosting fees and will be used if people don't pay their maintenance fees on time
+    uint256 public USDCRewardsBalance;    // amount held within contract for referrals and raffle balance 
     uint256 public dailyRaffleBalance;    // Strictly the Raffle amount of USDC to be award on the raffle 
     mapping (address => uint256) USDCRewardsForAddress; // amount of USDC user is allowed to via the referral and raffle reward system
     mapping (address => uint256) WBTCRewardsForAddress;     
   
 
     // NFT INFO 
-    string private _tokenBaseURI;
     string private baseURI;
     string private baseExtension = ".json";
  
@@ -89,15 +98,10 @@ contract TheRanchBullsMintAndReward is
     uint16 private constant REQUEST_CONFIRMATIONS = 3;
     uint32 private constant NUM_WORDS_DAILY = 1;          // used for daily raffle
   
-
     // Raffle Variables
-    uint256 public interval = 86400;
-    uint256 private lastTimeStamp;
     address[] private dailyRafflePlayers;
-    RaffleMintState private raffleMintState;
-
+ 
     // Maintenance Fees Variables and Mappings
-
     // The amount calculated for hosting invoice / NFT count 
     uint256 public calculatedMonthlyMaintenanceFee;   
 
@@ -114,33 +118,54 @@ contract TheRanchBullsMintAndReward is
     mapping(address => uint256) public totalMaintanenceFeesDue;
     mapping(address => uint)  public monthsBehindMaintenanceFeeDueDate;
 
-
-    /**
-     * @dev This mapping will serve the feeding contract and potenitally more in the future. These contracts will have the ability to call the updateUSDCBonusAmtForAddress
-     * function. As this is the primary reward token for minting and paying Maint Fees, We plan to launch another NFT that will award 
-     * owners on this contract with USDC. The hope being the other project helps each owner of the BTC bulls payoff their maint fees and hopefully more 
-     * to be an additional source of revenue for each Bull Owner 
-    */
-    mapping (address => bool) isAllowedToInteract; 
-
-    
-
     /**
      * @dev For addresses that are more than 3 months behind on the maintenance fees, each 
      * each address added here will get luquidated
     */
-    address[] public upForLiquidation; 
+    address[] internal upForLiquidation; 
+
+    // Stockyard allows the rewardBulls function to be more modular. 
+    struct StockyardInfo {
+        uint startingIndex;
+        uint endingIndex;
+        uint256 disperableAmount;
+    }
+
+    mapping (uint => StockyardInfo) public stockyardInfo;
 
 
-    enum RaffleMintState {
-        OPEN,
-        PROCESSING
+    // EXTERNAL NFTS THAT AWARD BTC BULLS WITH USDC
+    uint256 public percentToKeepFromExternalNfts = 50;
+
+    
+    /*
+     * @dev The isEcosystemRole is for other contracts that are allowed to update the USDC for BTC BULL Owners on this contract.
+     * @dev The isDefenderRole our openzeppelin Defender account working with autotasks and sentinals.
+    */
+
+    mapping(address => bool) public isEcosystemRole;
+    mapping(address => bool) public isDefenderRole;
+
+
+    modifier ADMIN_OR_DEFENDER {
+        require(msg.sender == owner() || isDefenderRole[msg.sender] == true, "Caller is not an OWNER OR DEFENDER");
+        _;
     }
 
 
 
     /* Events */
     event RequestedRaffleWinner(uint256 indexed requestId);
+
+    event PauseChanged(address _account, bool _changedTo);
+
+    event LoadedFundsIntoStockyard(
+        uint stockyardNumber,
+        uint256 indexed amountDeposited,
+        address indexed sender
+    
+    );
+
 
     event NewBullsEnteringRanch(
         address indexed NewbullOwner,
@@ -155,7 +180,6 @@ contract TheRanchBullsMintAndReward is
 
     );
     
-
     event withdrawUSDCRewardsForAddressEvent(
         address indexed nftOwner,
         uint256 indexed totalAmountTransferred
@@ -172,10 +196,21 @@ contract TheRanchBullsMintAndReward is
     );
 
 
-    event fundAndRewardEvent(
-            uint256 indexed _totalAmountDeposit,
-            uint indexed _startingIndex,
-            uint indexed _endingIndex
+    event RewardEvent(
+            uint256 totalAmountDispersed,
+            uint256 payPerNFT,
+            uint indexed startingIndex,
+            uint indexed endingIndex
+    );
+
+
+    event MaintenanceFeeUpdatingEvent(
+            uint monthlyMaintFee,
+            string sectionMessage
+    );
+
+    event MaintenanceFeeEvent(
+            string sectionMessage
     );
 
     event payMaintanenceFeesEvent(
@@ -187,6 +222,8 @@ contract TheRanchBullsMintAndReward is
 
 
     constructor(
+        address _coreTeam_1,
+        address _coreTeam_2,
         string memory _initBaseURI,
         address _vrfCoordinatorV2,
         bytes32 _gasLane, // keyHash
@@ -194,15 +231,28 @@ contract TheRanchBullsMintAndReward is
         uint32 _callbackGasLimit
     ) 
         VRFConsumerBaseV2(_vrfCoordinatorV2)
-        ERC721("TheRanch_BTC_BULLS", "TRBB") {
+        ERC721("TheRanch_BTC_BULLS_COMMUNITY", "TRBC") {
 
+
+
+        if (address(_coreTeam_1) == address(0)) { revert Address_CantBeAddressZero();}
+        if (address(_coreTeam_2) == address(0)) { revert Address_CantBeAddressZero();}
+        coreTeam_1 = _coreTeam_1;
+        coreTeam_2 = _coreTeam_2;
+        
         setBaseURI(_initBaseURI);  
         vrfCoordinator = VRFCoordinatorV2Interface(_vrfCoordinatorV2);
         gasLane = _gasLane;
         subscriptionId = _subscriptionId;
-        raffleMintState = RaffleMintState.OPEN;
-        lastTimeStamp = block.timestamp;
         callbackGasLimit = _callbackGasLimit;
+
+
+        // // CoreTeam1 member will be in charge of transferring these NFTs to people helping the project such as multisig help, advertisement, security help.
+        // for(uint256 i = 0; i < 15; i++) {
+        //     _tokenSupply.increment();
+        //     _safeMint(_coreTeam_1, _tokenSupply.current());
+        // }
+
     }
 
 
@@ -217,20 +267,16 @@ contract TheRanchBullsMintAndReward is
      * 5. If msg.sender elects to enter raffle, 95% goes to btcMinersFund, if they do not, 98% does. 
     */
     function mint(uint256 _tokenQuantity, bool _enterRaffle) public payable {
-
-        if (raffleMintState == RaffleMintState.PROCESSING) {revert Raffle__RaffleIsProcessing();}
-        if (paused) { revert Contract_ContractPaused_CheckSocials();}
+        if (paused) { revert Contract_CurrentlyPaused_CheckSocials();}
         if (!publicSaleLive) { revert Minting_PublicSaleNotLive();}
-        if (_tokenQuantity ==  0) { revert Minting_CantMintZero();}
-        if (_tokenQuantity > 100) {revert Minting_ExceedsMintsPerTx();}
-        if (_tokenSupply.current() + _tokenQuantity > bulls_in_existence) {revert Minting_ExceedsTotalBulls();}
+        if (_tokenQuantity ==  0 || _tokenQuantity > 10) { revert Minting_IsZeroOrBiggerThanTen();}
+        // if (_tokenQuantity > 100) {revert Minting_ExceedsMintsPerTx();}
+        if (_tokenSupply.current() + _tokenQuantity > maxSupply) {revert Minting_ExceedsTotalBulls();}
 
 
         IERC20 mintingToken = IERC20(usdcTokenContract);
         uint256 minting_cost_per_bull = mintingCost * 10 ** usdcTokenDecimals;
-    
         uint256 totalTransactionCost = minting_cost_per_bull * _tokenQuantity;
-        //require(msg.value == totalTransactionCost, "msg.value not equal to total minting transaction cost.");
         mintingToken.safeTransferFrom(msg.sender, address(this), (totalTransactionCost));
 
         for(uint256 i = 0; i < _tokenQuantity; i++) {
@@ -259,9 +305,9 @@ contract TheRanchBullsMintAndReward is
         uint256 referralFundAmt = totalTransactionCost * 2 / 100;
         uint256 warChestAmt = totalTransactionCost * 5 / 100;
         uint256 btcMinersFundAmt = totalTransactionCost - (referralFundAmt + raffleFundAmt)  - warChestAmt; 
-        USDCRewardsBalanceTotal += (referralFundAmt + raffleFundAmt);
-        btcMinersBalanceTotal += btcMinersFundAmt;
-        warChestBalance += warChestAmt; 
+        USDCRewardsBalance += (referralFundAmt + raffleFundAmt);
+        btcMinersSafeBalance += btcMinersFundAmt;
+        hostingSafeBalance += warChestAmt; 
         
         // update USDC Reward Balances for referrals
         address referrer = myPartner[msg.sender];
@@ -280,39 +326,51 @@ contract TheRanchBullsMintAndReward is
 
 
 
-    function fundAndRewardBulls(uint _startingIndex, uint _endingIndex, uint256 _totalAmountToDeposit) public payable onlyOwner {
-        require(paused, "ERROR: Contract must be paused to start the monthly rewarding process");
-        require(_startingIndex < _endingIndex,"ERROR: Start must be lower");
-        require(_startingIndex > 0,"ERROR: Index 0 doesn't exist");
-        require(_endingIndex <= _tokenSupply.current(),"ERROR: This touches an non existent NFT ID");
-       
+
+    function fundBulls(uint _stockyardNumber, uint256 _totalAmountToDeposit) public payable ADMIN_OR_DEFENDER{
         // Transfer rewardTokens to the contract
+        if (stockyardInfo[_stockyardNumber].startingIndex == 0) { revert Stockyard_IsNotSetYet();}
         IERC20 tokenContract = IERC20(wbtcTokenContract);
         tokenContract.safeTransferFrom(msg.sender, address(this), _totalAmountToDeposit);
 
+        stockyardInfo[_stockyardNumber].disperableAmount += _totalAmountToDeposit;
+        emit LoadedFundsIntoStockyard(_stockyardNumber,_totalAmountToDeposit, msg.sender);
+    }
+
+
+    function rewardBulls(uint _stockyardNumber) public payable ADMIN_OR_DEFENDER {
+        if (calculatedMonthlyMaintenanceFee == 0) { revert Rewarding_NotReady();}
+        if (stockyardInfo[_stockyardNumber].disperableAmount == 0) { revert Rewarding_NotReady();}
+        if (!paused) { revert Pause_MustBePaused();}
+
+        
         // store the 10% Core team values to send later in the function
         uint256 coreTeam_1_amt; 
         uint256 coreTeam_2_amt; 
+
+        uint startingIndex = stockyardInfo[_stockyardNumber].startingIndex;
+        uint endingIndex = stockyardInfo[_stockyardNumber].endingIndex;
+
+        uint256 monthlyAmountToDisperse = stockyardInfo[_stockyardNumber].disperableAmount;
     
 
-        coreTeam_1_amt += _totalAmountToDeposit * coreTeam_1_percent / 100;
-        coreTeam_2_amt += _totalAmountToDeposit * coreTeam_2_percent / 100;
+        coreTeam_1_amt += monthlyAmountToDisperse * coreTeam_1_percent / 100;
+        coreTeam_2_amt += monthlyAmountToDisperse * coreTeam_2_percent / 100;
 
-        uint256 _disperableAmount = (_totalAmountToDeposit * (100 - (coreTeam_1_percent + coreTeam_2_percent)) / 100); 
 
-        uint256 payout_per_nft = _disperableAmount / ((_endingIndex - _startingIndex) + 1);
-        
-        for( uint i = _startingIndex; i <= _endingIndex; i++) {
+        uint256 _disperableAmount = (monthlyAmountToDisperse * (100 - (coreTeam_1_percent + coreTeam_2_percent)) / 100); 
+        uint256 payout_per_nft = _disperableAmount / ((endingIndex - startingIndex) + 1);
+
+
+        for( uint i = startingIndex; i <= endingIndex; i++) {
             address bullOwner = ownerOf(i);
             if (bullOwner != address(0)){
-
                 if (monthlyMaintanenceFeeDue[bullOwner] == false){
                     monthlyMaintanenceFeeDue[bullOwner] = true;
                     addressesToPayMaintenanceFees.push(bullOwner);
                 }
 
                 nftsHeldByAddressAtMonthlyPayout[bullOwner] += 1;
-
 
                 address referrer = myPartner[bullOwner];
                 uint256 referralAmt = payout_per_nft * 1 / 100;
@@ -328,40 +386,60 @@ contract TheRanchBullsMintAndReward is
             }
         }
 
-
         updateWBTCRewardBalanceForAddress(coreTeam_1, coreTeam_1_amt);
         updateWBTCRewardBalanceForAddress(coreTeam_2, coreTeam_2_amt);
-        emit fundAndRewardEvent(_totalAmountToDeposit, _startingIndex, _endingIndex);
+    
+        emit RewardEvent(monthlyAmountToDisperse, payout_per_nft, startingIndex, endingIndex);
 
+        // reset monthly amount for stockyard
+        stockyardInfo[_stockyardNumber].disperableAmount = 0;
     }
 
+
+
+ 
+
+    // passing a memory array to do this all in one external call
     /**
-    * @dev When The Feeding Contract checks the owners of the NFTs (HayBales NFTs) from that contract, it reaches 
-    * over to this contract and tries to update the USDC amount within these rules:
+    * @dev When any other contract in our ecosystem checks the owners of the BTC BullsNFTs, it will updated the USDC amoutn for the 
+    * BTC Bulls owner on this contract. It incentives ownership of both NFTS this way: 
     * if the HayBale owner also owns a Bull NFT on this contract, they'll get 100% of the paycut.
     * if the Haybale owner does not own a bull, they will share the paycut 50/50 with CoreTeam_1 
     */
-    function updateUsdcBonusFromAnotherContract(address _ownerOfNFT, uint256 _amountToAdd) external {
-        require(isAllowedToInteract[msg.sender] == true, "You are not allowed to call this function");
+    function updateUsdcBonusFromAnotherContract(address[] memory _ownersOfTheNFTs, uint256 _amountToAdd) external {
+        require(isEcosystemRole[msg.sender] == true, "must be approved to interact");
 
-        if (balanceOf(_ownerOfNFT) > 0){
-            USDCRewardsForAddress[_ownerOfNFT] += _amountToAdd;
-        } else {
-            uint256 splitBonusAmt = _amountToAdd * 50 / 100;
-            USDCRewardsForAddress[_ownerOfNFT] += splitBonusAmt;
-            USDCRewardsForAddress[coreTeam_1] += splitBonusAmt;
+        
+
+        for( uint i; i < _ownersOfTheNFTs.length; i++) {
+            address _ownerOfNFT = _ownersOfTheNFTs[i];
+            if (balanceOf(_ownerOfNFT) > 0){
+                USDCRewardsForAddress[_ownerOfNFT] += _amountToAdd;
+            } else {
+                uint256 splitBonusAmt = _amountToAdd * 50 / 100;
+                USDCRewardsForAddress[_ownerOfNFT] += splitBonusAmt;
+                USDCRewardsForAddress[coreTeam_1] += splitBonusAmt;
+            }
         }
     }
 
-    function updateMaintenanceFeesForTheMonth() external onlyOwner {
-        require(paused, "ERROR: Contract must be paused to start the monthly rewarding process");
-        require(calculatedMonthlyMaintenanceFee != 0, "You must set the Calculated Monthly Maintenance Fee First");
-        require(addressesToPayMaintenanceFees.length > 0, "Must fund and award first");
+
+    //TESTING ONLY 
+    function pushIntoArray(address _personToPush) external ADMIN_OR_DEFENDER {
+        addressesToPayMaintenanceFees.push(_personToPush);
+    }
 
 
+
+
+
+    function updateMaintenanceFeesForTheMonth() external ADMIN_OR_DEFENDER {
+        if (!paused) { revert Maintenance_UpdatingNotReady();}
+        if (addressesToPayMaintenanceFees.length < 1) { revert Pause_MustBePaused();}
+        
         address[] memory _addressesToPayMaintenanceFees = addressesToPayMaintenanceFees; 
 
-
+        uint _calculatedMonthlyMaintenanceFee = calculatedMonthlyMaintenanceFee;
         for( uint i; i < _addressesToPayMaintenanceFees.length; i++) {
             address _ownerOfNFTs = _addressesToPayMaintenanceFees[i];
             uint _nftCount = nftsHeldByAddressAtMonthlyPayout[_ownerOfNFTs];
@@ -383,14 +461,16 @@ contract TheRanchBullsMintAndReward is
         // reset calculatedMonthlyMaintenanceFee and addresses found to pay them
         calculatedMonthlyMaintenanceFee = 0;
         addressesToPayMaintenanceFees = new address[](0);
+
+        // emit finishing event
+        emit MaintenanceFeeUpdatingEvent(_calculatedMonthlyMaintenanceFee, '_STEP2DONE_ Updated Monthly Fees For Current BTC Bull Owners' );
     }
 
 
-    function updateMonthsBehindMaintenanceFeeDueDate() external onlyOwner {
-        require(paused, "ERROR: Contract must be paused to start the monthly rewarding process");
+    function updateMonthsBehindMaintenanceFeeDueDate() external ADMIN_OR_DEFENDER{
+        if (!paused) { revert Maintenance_UpdatingNotReady();}
 
         address[] memory _allAddressThatHaveEverBeenRewarded = allAddressThatHaveEverBeenRewarded; 
-
 
         for( uint i; i < _allAddressThatHaveEverBeenRewarded.length; i++) {
             address _address = _allAddressThatHaveEverBeenRewarded[i];
@@ -403,22 +483,28 @@ contract TheRanchBullsMintAndReward is
                 upForLiquidation.push(_address);
             }
         }
+
+        // emit event
+        emit MaintenanceFeeEvent('_STEP3DONE_ Updated How Many Months Behind For BTC Bull Owners');
+
     }
 
 
-    function getLiquidatedArray() public view returns ( address [] memory) {
-        return upForLiquidation;
+    function getLiquidatedArrayLength() public view ADMIN_OR_DEFENDER returns (uint) {
+        return upForLiquidation.length;
     }
 
+    function liquidateOutstandingAccounts() external ADMIN_OR_DEFENDER {
+        if (!paused) { revert Maintenance_UpdatingNotReady();}
+        if (upForLiquidation.length < 1) { revert Liquidation_NothingToDo();}
 
-    function liquidateOutstandingAccounts() external onlyOwner {
-        require(paused, "ERROR: Contract must be paused to start the monthly rewarding process");
-        require(upForLiquidation.length > 0, "No one meets liquidation criteria.");
+        uint256 totalAmountLiquidated; 
+
         for( uint i; i < upForLiquidation.length; i++) {
             address _culprit = upForLiquidation[i];
             uint256 _amount = WBTCRewardsForAddress[_culprit];
             WBTCRewardsForAddress[_culprit] = 0;
-            WBTCRewardsForAddress[coreTeam_1] = _amount;
+            totalAmountLiquidated += _amount; 
 
             // reset fees and months behind. 
             totalMaintanenceFeesDue[_culprit] = 0;
@@ -426,7 +512,12 @@ contract TheRanchBullsMintAndReward is
             emit liquidationEvent(_culprit, _amount) ;
             
         }
+
         upForLiquidation = new address[](0);
+        IERC20(wbtcTokenContract).safeTransferFrom(address(this), hostingSafe, totalAmountLiquidated);
+        
+        // emit event
+        emit MaintenanceFeeEvent('Finished Liquidated Outstanding Accounts');
     }
 
 
@@ -469,8 +560,6 @@ contract TheRanchBullsMintAndReward is
     }
 
 
-
-
     function updateWBTCRewardBalanceForAddress(address _ownerOfNFT, uint256 _amount) internal {
         WBTCRewardsForAddress[_ownerOfNFT] +=  _amount;
     }
@@ -479,55 +568,9 @@ contract TheRanchBullsMintAndReward is
         return WBTCRewardsForAddress[msg.sender]; 
     }
 
-    // Chainlink Integration 
-     /**
-     * @dev This is the function that the Chainlink Keeper nodes call
-     * they look for `upkeepNeeded` to return True.
-     * the following should be true for this to return true:
-     * 1. The time interval has passed between raffle runs.
-     * 2. The raffle is open.
-     * 3. The USDCRewardsForAddress is greater than 0.
-     * 4. Implicity, chainlink subscription is funded with LINK.
-     */
-    function checkUpkeep(
-        bytes memory /* checkData */
-    )
-        public
-        view
-        override
-        returns (
-            bool upkeepNeeded,
-            bytes memory /* performData */
-        )
-    {
-        bool isOpen = RaffleMintState.OPEN == raffleMintState;
-        bool timePassed = ((block.timestamp - lastTimeStamp) > interval);
-        bool hasPlayers = dailyRafflePlayers.length > 0;
-        bool hasBalance = USDCRewardsBalanceTotal > 0;
-        upkeepNeeded = (timePassed && isOpen && hasBalance && hasPlayers);
-        return (upkeepNeeded, "0x0"); 
-    }
 
-
-
-
-    /**
-     * @dev Once `checkUpkeep` is returning `true`, this function is called
-     * and it kicks off a Chainlink VRF call to get a random winner.
-     */
-    function performUpkeep(
-        bytes calldata /* performData */
-    ) external override {
-        (bool upkeepNeeded, ) = checkUpkeep("");
-        // require(upkeepNeeded, "Upkeep not needed");
-        if (!upkeepNeeded) {
-            revert Raffle__UpkeepNotNeeded(
-                USDCRewardsBalanceTotal,
-                dailyRafflePlayers.length,
-                uint256(raffleMintState)
-            );
-        }
-        raffleMintState = RaffleMintState.PROCESSING;
+    function kickOffDailyRaffle() external ADMIN_OR_DEFENDER {
+        paused = !paused;  //Pause contract everytime the raffle happens 
         uint256 requestId = vrfCoordinator.requestRandomWords(
             gasLane,
             subscriptionId,
@@ -537,7 +580,6 @@ contract TheRanchBullsMintAndReward is
         );
         emit RequestedRaffleWinner(requestId);
     }
-
 
     /**
      * @dev This is the function that Chainlink VRF node
@@ -560,8 +602,6 @@ contract TheRanchBullsMintAndReward is
         dailyRaffleBalance = 0;  // reset dailyRaffleBalance back to zero after drawing
         dailyRafflePlayers = new address[](0);
 
-        lastTimeStamp = block.timestamp;
-        raffleMintState = RaffleMintState.OPEN;
         emit dailyRaffleWinnerEvent(dailYRaffleWinner, raffleWinningAmount);
 
     }
@@ -580,8 +620,8 @@ contract TheRanchBullsMintAndReward is
 
 
     function setPartnerAddress(address _newPartner)  public {
-        require(address(_newPartner) != address(0), "ERROR: address can't be address(0)");
-        require(address(_newPartner) != msg.sender, "ERROR: address can't be yourself");
+        if (address(_newPartner) == address(0)) { revert Partner_NotAllowed();}
+        if (address(_newPartner) == msg.sender) { revert Partner_NotAllowed();}
 
         address currentPartner = myPartner[msg.sender];
         // myPartner[msg.sender] = _newPartner;
@@ -600,7 +640,7 @@ contract TheRanchBullsMintAndReward is
     function fund() public payable {}
 
     function withdraw() external onlyOwner {
-        payable(owner()).transfer(address(this).balance);
+        payable(msg.sender).transfer(address(this).balance);
     }
 
     function withdrawToken(address _tokenContract, uint256 _amount) external onlyOwner {
@@ -608,30 +648,37 @@ contract TheRanchBullsMintAndReward is
         tokenContract.safeTransfer(msg.sender, _amount);
     }
 
-    function withdrawBtcMinerBalance() external onlyOwner {
+    function withdrawBtcMinersSafeBalance() external ADMIN_OR_DEFENDER {
         IERC20 tokenContract = IERC20(usdcTokenContract);
-        uint256 amtToTransfer = btcMinersBalanceTotal; 
-        tokenContract.safeTransfer(msg.sender, amtToTransfer);
-        btcMinersBalanceTotal -= amtToTransfer;
+        uint256 amtToTransfer = btcMinersSafeBalance;
+
+        tokenContract.safeTransferFrom(address(this), btcMinersSafe, amtToTransfer);
+        btcMinersSafeBalance -= amtToTransfer;
+
+    
     }
 
-    function withdrawWarChestBalance() external onlyOwner {
+    function withdrawHostingSafeBalance() external ADMIN_OR_DEFENDER {
         IERC20 tokenContract = IERC20(usdcTokenContract);
-        uint256 amtToTransfer = warChestBalance; 
-        tokenContract.safeTransfer(msg.sender, amtToTransfer);
-        warChestBalance -= amtToTransfer;
+        uint256 amtToTransfer = hostingSafeBalance; 
+        tokenContract.safeTransferFrom(address(this), hostingSafe, amtToTransfer);
+        hostingSafeBalance -= amtToTransfer;
     }
+
+
+
 
 
     function withdrawWbtcForWalletAddress() external nonReentrant {
-        require(!paused, "ERROR: Contract Paused. Please Check Discord.");
-        require(!isBlacklisted[msg.sender], "Blacklisted address");
-        require(totalMaintanenceFeesDue[msg.sender] == 0, "You must pay all maintenance fees before WBTC withdrawal is allowed");
+        if (paused) { revert Contract_CurrentlyPaused_CheckSocials();}
+        if (isBlacklisted[msg.sender]) { revert Blacklisted();}
+
+        require(totalMaintanenceFeesDue[msg.sender] == 0, "You must pay maintenance fee balance before WBTC withdrawal is allowed");
 
         // Get the total Balance to award the owner of the NFT(s)
         uint256 myBalance = WBTCRewardsForAddress[msg.sender];
-        require(myBalance > 0, "You must have a balance more than 0");
-  
+        if (myBalance == 0) { revert Rewarding_NoBalanceToWithdraw();}
+
         // Transfer Balance 
         IERC20(wbtcTokenContract).safeTransfer(msg.sender, myBalance );
 
@@ -639,25 +686,22 @@ contract TheRanchBullsMintAndReward is
         WBTCRewardsForAddress[msg.sender] = 0;
         
         emit withdrawWbtcRewardsEvent(msg.sender, myBalance);
-
     }
 
     function withdrawUsdcRewardBalance() external nonReentrant {
-
-        require(!paused, "ERROR: Contract Paused. Please Check Discord.");
-        require(!isBlacklisted[msg.sender], "Blacklisted address");
+        if (paused) { revert Contract_CurrentlyPaused_CheckSocials();}
+        if (isBlacklisted[msg.sender]) { revert Blacklisted();}
         
         // Get USDC rewards balance for msg.sender
         uint256 myBalance = USDCRewardsForAddress[msg.sender];
-        require(myBalance > 0, "You must have a balance more than 0");
+        if (myBalance == 0) { revert Rewarding_NoBalanceToWithdraw();}
  
-
         // Transfer Balance 
         IERC20(usdcTokenContract).safeTransfer(msg.sender, (myBalance));
         // update mapping on contract 
         USDCRewardsForAddress[msg.sender] = 0;
         // update USDC Rewards Balance Total
-        USDCRewardsBalanceTotal -= myBalance;
+        USDCRewardsBalance -= myBalance;
         
         // emit event
         emit withdrawUSDCRewardsForAddressEvent(msg.sender, myBalance);
@@ -667,8 +711,6 @@ contract TheRanchBullsMintAndReward is
     function updateUsdcBonus(address _recipient, uint256 _amountToAdd) internal {
         USDCRewardsForAddress[_recipient] += _amountToAdd;
     }
-
-
 
     function getUsdcRewardBalanceForAddress() public view returns (uint256) {
         return USDCRewardsForAddress[msg.sender];
@@ -695,16 +737,15 @@ contract TheRanchBullsMintAndReward is
     }
 
     /**
-    * @dev checks if an address is using you as their partner.
+    * @dev checks if an address has minted before on the contract.
     */
-    function getHaveTheyMintedBefore(address _adressToCheck) public view returns (bool) {
+    function getHaveTheyMintedBefore(address _adressToCheck) external view returns (bool) {
         if (userMintCount[_adressToCheck] > 0){
             return true;
         }
         return false;
     }
 
-   
     function getMintCountForAddress(address _address) public view returns (uint) {
         return userMintCount[_address];
     }
@@ -722,27 +763,10 @@ contract TheRanchBullsMintAndReward is
         return tokenIds;
     }
 
-    function getRaffleMintState() public view returns (RaffleMintState) {
-        return raffleMintState;
-    }
-
- 
     function getRequestConfirmations() public pure returns (uint256) {
         return REQUEST_CONFIRMATIONS;
     }
 
-
-    function getRafflePlayer(uint256 index) public view returns (address) {
-        return dailyRafflePlayers[index];
-    }
-
-    function getLastTimeStamp() public view returns (uint256) {
-        return lastTimeStamp;
-    }
-
-    function getRaffleInterval() public view returns (uint256) {
-        return interval;
-    }
 
     function getNumberOfRafflePlayers() public view returns (uint256) {
         return dailyRafflePlayers.length;
@@ -751,8 +775,6 @@ contract TheRanchBullsMintAndReward is
     function getBlacklistedStatus(address _address) public view returns (bool) {
         return isBlacklisted[_address];
     }
-
- 
 
    // METADATA
     function _baseURI() internal view virtual override returns (string memory) {
@@ -778,64 +800,72 @@ contract TheRanchBullsMintAndReward is
     }
 
 
-    // Contract Control _ OnlyOwner
-    function setBaseURI(string memory _newBaseURI) public onlyOwner {
-            baseURI = _newBaseURI;
+    // Contract Control _ ADMIN ONLY
+    function setBaseURI(string memory _newBaseURI) public onlyOwner{
+        baseURI = _newBaseURI;
     }
-
 
     function setBaseExtension(string memory _newBaseExtension) external onlyOwner {
-            baseExtension = _newBaseExtension;
+        baseExtension = _newBaseExtension;
     }
 
-    function togglePublicSaleStatus() external onlyOwner {
+    function togglePublicSaleStatus() external onlyOwner{
         publicSaleLive = !publicSaleLive;
     }
 
-    function togglePauseStatus() external onlyOwner {
-        require(address(coreTeam_1) != address(0), "ERROR: The coreTeam_1 address must be set prior to any minting");
-        require(address(coreTeam_2) != address(0), "ERROR: The coreTeam_2 address must be set prior to any minting");
-        require(address(usdcTokenContract) != address(0), "ERROR: The usdcTokenContract address must be set prior to any minting");
-        require(address(wbtcTokenContract) != address(0), "ERROR: The wbtcTokenContract address must be set prior to any minting");
-        paused = !paused;
+    function setPauseStatus(bool _paused) external ADMIN_OR_DEFENDER{
+        if(address(coreTeam_1) == address(0)) { revert Pause_MustSetAllVariablesFirst();}
+        if(address(coreTeam_2) == address(0)) { revert Pause_MustSetAllVariablesFirst();}
+        if(address(usdcTokenContract) == address(0)) { revert Pause_MustSetAllVariablesFirst();}
+        if(address(wbtcTokenContract) == address(0)) { revert Pause_MustSetAllVariablesFirst();}
+        if(address(hostingSafe) == address(0)) { revert Pause_MustSetAllVariablesFirst();}
+        if(address(btcMinersSafe) == address(0)) { revert Pause_MustSetAllVariablesFirst();}
+        string memory currentBaseURI = _baseURI();
+        if(bytes(currentBaseURI).length == 0) { revert Pause_BaseURIMustBeSetFirst();}
+
+        paused = _paused;
+
+        emit PauseChanged(msg.sender, _paused);
     }
 
-    function setCoreTeam_1_Address(address _coreTeam_1) public onlyOwner {
-        require(address(_coreTeam_1) != address(0), "ERROR: The coreTeam_1 address can't be address(0)");
+    function setCoreTeamAddresses(
+        address _coreTeam_1,
+        address _coreTeam_2,
+        uint _percent_1,
+        uint _percent_2
+        ) external onlyOwner {
+
+        if (address(_coreTeam_1 ) == address(0) || address(_coreTeam_2 ) == address(0)) { revert Address_CantBeAddressZero();}
+        require(_percent_1 + _percent_2 <= 10, "coreTeam_1 and coreTeam_2 must be 10% or lower");
         coreTeam_1 = _coreTeam_1;
-    }
-
-    function setCoreTeam_2_Address(address _coreTeam_2) public onlyOwner {
-        require(address(_coreTeam_2) != address(0), "ERROR: The coreTeam_2 address can't be address(0)");
         coreTeam_2 = _coreTeam_2;
+        coreTeam_1_percent  = _percent_1;
+        coreTeam_2_percent  = _percent_2;
     }
 
-    function setCoreTeam_1_Percent(uint256 _percent) external onlyOwner {
-        require(coreTeam_2_percent + _percent <= 10, "coreTeam_1 and coreTeam_2 must be 10% or lower");
-        coreTeam_1_percent  = _percent;
+
+    function setSafeAddresses(address _hostingSafe, address _btcMinersSafe) external onlyOwner {
+        if (address(_hostingSafe ) == address(0) || address(_btcMinersSafe ) == address(0)) { revert Address_CantBeAddressZero();}
+        hostingSafe = _hostingSafe;
+        btcMinersSafe = _btcMinersSafe;
     }
 
-    function setCoreTeam_2_Percent(uint256 _percent) external onlyOwner {
-        require(coreTeam_1_percent + _percent <= 10, "coreTeam_1 and coreTeam_2 must be 10% or lower");
-        coreTeam_2_percent  = _percent;
-    }
-
-    function set_minting_price(uint _price) external onlyOwner {
-        require(paused, "ERROR: CANT CHANGE PRICE IF CONTRACT IS NOT PAUSED");
+    function setMintingPrice(uint _price) external onlyOwner {
+        if (!paused) { revert Pause_MustBePaused();}
         mintingCost = _price;
     }
 
     function setUsdcTokenAddress(address _address) public onlyOwner {
-        require(address(_address ) != address(0), "ERROR: The Minting address can't be address(0)");
+        if (address(_address ) == address(0)) { revert Address_CantBeAddressZero();}
         usdcTokenContract = _address;
     }
 
-    function setUsdcTokenDecimals(uint _decimals) public onlyOwner {
+    function setUsdcTokenDecimals(uint _decimals) public  onlyOwner {
         usdcTokenDecimals = _decimals;
     }
 
     function setWbtcTokenAddress(address _address) public onlyOwner {
-        require(address(_address ) != address(0), "ERROR: The Minting address can't be address(0)");
+        if (address(_address ) == address(0)) { revert Address_CantBeAddressZero();}
         wbtcTokenContract = _address;
     }
 
@@ -859,23 +889,40 @@ contract TheRanchBullsMintAndReward is
         vrfCoordinator = _vrfCoordinator;
     }
 
-    function setInterval(uint256 _interval) public onlyOwner {
-        interval = _interval;
+    function blacklistMalicious(address _address, bool value) external onlyOwner {
+        isBlacklisted[_address] = value;
     }
 
+    function setEcosystemRole(address _address, bool value) external onlyOwner {
+        isEcosystemRole[_address] = value;
+    }
 
-    function blacklistMalicious(address account, bool value) external onlyOwner {
-        isBlacklisted[account] = value;
+    function setDefenderRole(address _address, bool value) external onlyOwner {
+        isDefenderRole[_address] = value;
     }
 
     function setMonthlyMaintenanceFeePerNFT(uint256 _monthly_maint_fee_per_nft) external onlyOwner {
         calculatedMonthlyMaintenanceFee = _monthly_maint_fee_per_nft;
     }
 
-    function setAllowedContractsToAwardTheBulls(address _address, bool _bool) public onlyOwner {
-        require( _address != address(0), "Can't be address(0)");
-        isAllowedToInteract[_address] = _bool;
+    function setStockYardInfo(uint _stockyardNumber, uint256 _startingDisperableAmount, uint _startingIndex, uint _endingIndex) public onlyOwner {
+        if (_startingIndex == 0 || _endingIndex == 0 || _stockyardNumber == 0) { revert BadLogicInputParameter();}
+        if (_endingIndex > _tokenSupply.current()) { revert BadLogicInputParameter();}
+        if (stockyardInfo[_stockyardNumber - 1].endingIndex + 1 != _startingIndex ) { revert BadLogicInputParameter();}
+   
+        stockyardInfo[_stockyardNumber] =  StockyardInfo(_startingIndex, _endingIndex,_startingDisperableAmount);
     }
+
+    /**
+    * @dev This is the amount of rewards thats (percentage) that an owner will keep if they don't own a BTC bull on this contract
+    * when theupdateUsdcBonusFromAnotherContract function rewards the current owners of BTC Bulls via another NFT in the ecosystem. 
+    */
+    function setPercentToKeepFromExternalNfts(uint _percentage) public onlyOwner {
+        if (_percentage < 0 || _percentage > 100) { revert BadLogicInputParameter();}
+        percentToKeepFromExternalNfts = _percentage;
+    }
+
+
 
 
 

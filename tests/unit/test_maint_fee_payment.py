@@ -220,8 +220,8 @@ def test_PartnerNetworkTeam():
     TheRanchBullsMintAndReward.mint(amt,raffleEntryBool,{"from": person_9, "value":  price_needed(amt)})
 
     amt = 2
-    TheRanchBullsMintAndReward.setPartnerAddress(person_2, {"from": person_10})
-    assert TheRanchBullsMintAndReward.getAreTheyOnMyPartnerNetworkTeam(person_10, {"from": person_2}) == True
+    TheRanchBullsMintAndReward.setPartnerAddress(person_3, {"from": person_10})
+    assert TheRanchBullsMintAndReward.getAreTheyOnMyPartnerNetworkTeam(person_10, {"from": person_3}) == True
     mocked_usdc.approve(TheRanchBullsMintAndReward.address, price_needed(amt),{"from":person_10})
     TheRanchBullsMintAndReward.mint(amt,raffleEntryBool,{"from": person_10, "value":  price_needed(amt)})
     
@@ -279,26 +279,8 @@ def test_PartnerNetworkTeam():
 
 
     assert  TheRanchBullsMintAndReward.getPartnerNetworkTeamCount(person_1) == 4
-    assert  TheRanchBullsMintAndReward.getPartnerNetworkTeamCount(person_2) == 4
-    assert  TheRanchBullsMintAndReward.getPartnerNetworkTeamCount(person_3) == 0
-
-
-    assert TheRanchBullsMintAndReward.getAreTheyOnMyPartnerNetworkTeam(person_10, {"from": person_1}) == False
-    assert TheRanchBullsMintAndReward.getAreTheyOnMyPartnerNetworkTeam(person_10, {"from": person_2}) == True
-    x = TheRanchBullsMintAndReward.setPartnerAddress(person_1, {"from": person_10})
-    
-
-    assert TheRanchBullsMintAndReward.getAreTheyOnMyPartnerNetworkTeam(person_10, {"from": person_1}) == True
-    assert TheRanchBullsMintAndReward.getAreTheyOnMyPartnerNetworkTeam(person_10, {"from": person_2}) == False
-
-
-    assert  TheRanchBullsMintAndReward.getPartnerNetworkTeamCount(person_1) == 5
     assert  TheRanchBullsMintAndReward.getPartnerNetworkTeamCount(person_2) == 3
-    assert  TheRanchBullsMintAndReward.getPartnerNetworkTeamCount(person_3) == 0
-
-
-
-
+    assert  TheRanchBullsMintAndReward.getPartnerNetworkTeamCount(person_3) == 1
 
 
 
@@ -326,3 +308,267 @@ def test_PartnerNetworkTeam():
     print(f'team count person_8 : {TheRanchBullsMintAndReward.getPartnerNetworkTeamCount(person_8)}')
     print(f'team count person_9 : {TheRanchBullsMintAndReward.getPartnerNetworkTeamCount(person_9)}')
     print(f'team count person_10 : {TheRanchBullsMintAndReward.getPartnerNetworkTeamCount(person_10)}')
+
+
+
+
+
+
+
+
+
+
+
+
+
+    #######################################################
+    #######                                         #######
+    #######                REWARD                   #######     
+    #######                                         #######
+    #######################################################
+
+
+
+    #################################################################
+    ######### owner needs to set the stockyard information  #########
+    #################################################################
+
+    tx_set_stockyard = TheRanchBullsMintAndReward.setStockYardInfo(1,1,20, {"from": multisig})
+
+
+    #### set the defender wallet up to allow this ###
+    TheRanchBullsMintAndReward.setDefenderRole(defender_wallet, True, {"from": multisig})
+
+
+    assert TheRanchBullsMintAndReward.calculatedMonthlyMaintenanceFee.call() == 0
+    assert TheRanchBullsMintAndReward.payPerNftForTheMonth.call() == 0
+
+
+
+    TheRanchBullsMintAndReward.setMonthlyMaintenanceFeePerNFT(18*10**6, {"from": multisig})   # 14 dollars in USDC.e for round 2
+    assert TheRanchBullsMintAndReward.calculatedMonthlyMaintenanceFee.call() == 18*10**6
+
+
+
+    #################################################################
+    ######### owner needs to send funds and set the pay per nft  ####
+    #################################################################
+
+   
+
+
+    total_to_deposit = 1 * 10 ** 8 
+
+    mocked_wbtc.approve(TheRanchBullsMintAndReward,total_to_deposit, {"from":multisig})
+    fundAndSetPayPerNFT = TheRanchBullsMintAndReward.setPayPerNftForTheMonthAndCurrentRewardingDate(total_to_deposit,'0622',{"from": multisig})
+    print(fundAndSetPayPerNFT.info())
+
+
+    print(TheRanchBullsMintAndReward.payPerNftForTheMonth.call())
+
+    expected_amt_per_nft = ((total_to_deposit * .90) / TheRanchBullsMintAndReward.totalSupply())
+    assert TheRanchBullsMintAndReward.payPerNftForTheMonth.call() == expected_amt_per_nft
+
+
+
+    ###########################################################
+    ######### owner updates the maintenance fees variable ####
+    ###########################################################
+
+  
+  
+
+    ### call the readyToReward function to begin the rewarding process ###
+    TheRanchBullsMintAndReward.setReadyToReward({"from": multisig})
+
+
+    
+    ########################################################################################
+    ######### Autotasks handle the payout as the defender wallet can do the rest ###########
+    ########################################################################################
+
+    ### pause the contract ###
+    TheRanchBullsMintAndReward.setPauseStatus(True, {"from": defender_wallet})
+
+   
+    assert TheRanchBullsMintAndReward.stockyardsThatHaveBeenRewardedCount.call() == 0
+
+
+    #######################
+    ###      REWARD     ###
+    #######################
+
+
+    reward_tx = TheRanchBullsMintAndReward.rewardBulls(1,{"from": defender_wallet})
+    print(reward_tx.info())
+
+
+    ####################################
+    ### UPDATE MAINTENANCE STANDING  ###
+    ####################################
+
+    update_maint_standing = TheRanchBullsMintAndReward.updateMaintenanceStanding({"from":defender_wallet})
+
+    print(update_maint_standing.info())
+
+
+
+
+
+
+
+
+
+
+
+    print("\n\n")
+
+
+
+    print(f'Maint Fee Due person_1 : {TheRanchBullsMintAndReward.getMaintenanceFeesForTheOwner({"from": person_1})}')
+    print(f'USDC balance person_1 : {TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_1})}')
+  
+
+    print("\n\n")
+
+
+    print(f'Maint Fee Due person_3 : {TheRanchBullsMintAndReward.getMaintenanceFeesForTheOwner({"from": person_3})}')
+    print(f'USDC balance person_3 : {TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_3})}')
+
+
+    print("\n\n")
+
+    print(f'Maint Fee Due person_5 : {TheRanchBullsMintAndReward.getMaintenanceFeesForTheOwner({"from": person_5})}')
+    print(f'USDC balance person_5 : {TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_5})}')
+   
+
+
+
+
+
+                                # Maint Fee Due person_1 : 36000000
+                                #  USDC balance person_1 : 56000000
+
+
+
+                             
+
+    pay_maintenance_fees_event = TheRanchBullsMintAndReward.payMaintanenceFees({"from": person_1})
+    print(pay_maintenance_fees_event.info())
+
+    assert pay_maintenance_fees_event.events["payMaintanenceFeesEvent"]["totalAmountPayedWithCurrentRewards"] == 36000000
+    assert pay_maintenance_fees_event.events["payMaintanenceFeesEvent"]["totalAmountPayedWithoutCurrentRewards"] == 0
+
+
+    assert TheRanchBullsMintAndReward.getMaintenanceFeesForTheOwner({"from": person_1})  == 0
+    assert TheRanchBullsMintAndReward.getMaintenanceFeesStandingForTheOwner({"from": person_1}) == 0
+    assert TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_1}) == 56000000 - 36000000
+
+
+
+
+
+
+
+                                # Maint Fee Due person_3 : 36000000
+                                #  USDC balance person_3 : 14000000
+
+
+
+
+
+    usdc_balance =  TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_3})
+    fees_due = TheRanchBullsMintAndReward.getMaintenanceFeesForTheOwner({"from": person_3})
+    if usdc_balance >= fees_due: 
+        pay_maintenance_fees_event = TheRanchBullsMintAndReward.payMaintanenceFees({"from": person_3})
+    else:
+        amount_to_approve = fees_due - usdc_balance
+        mocked_usdc.approve(TheRanchBullsMintAndReward,amount_to_approve, {"from": person_3})
+        pay_maintenance_fees_event = TheRanchBullsMintAndReward.payMaintanenceFees({"from": person_3})
+
+
+    print(pay_maintenance_fees_event.info())
+
+    assert pay_maintenance_fees_event.events["payMaintanenceFeesEvent"]["totalAmountPayedWithCurrentRewards"] == 14000000
+    assert pay_maintenance_fees_event.events["payMaintanenceFeesEvent"]["totalAmountPayedWithoutCurrentRewards"] == 36000000 - 14000000
+
+
+    assert TheRanchBullsMintAndReward.getMaintenanceFeesForTheOwner({"from": person_3})  == 0
+    assert TheRanchBullsMintAndReward.getMaintenanceFeesStandingForTheOwner({"from": person_3}) == 0
+    assert TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_3}) == 0
+
+
+
+
+
+
+
+                                # Maint Fee Due person_5 : 36000000
+                                #  USDC balance person_5 : 0
+
+
+
+
+
+    usdc_balance =  TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_5})
+    fees_due = TheRanchBullsMintAndReward.getMaintenanceFeesForTheOwner({"from": person_5})
+    if usdc_balance >= fees_due: 
+        pay_maintenance_fees_event = TheRanchBullsMintAndReward.payMaintanenceFees({"from": person_5})
+    else:
+        amount_to_approve = fees_due - usdc_balance
+        mocked_usdc.approve(TheRanchBullsMintAndReward,amount_to_approve, {"from": person_5})
+        pay_maintenance_fees_event = TheRanchBullsMintAndReward.payMaintanenceFees({"from": person_5})
+
+
+    print(pay_maintenance_fees_event.info())
+
+    assert pay_maintenance_fees_event.events["payMaintanenceFeesEvent"]["totalAmountPayedWithCurrentRewards"] == 0
+    assert pay_maintenance_fees_event.events["payMaintanenceFeesEvent"]["totalAmountPayedWithoutCurrentRewards"] == 36000000
+
+
+    assert TheRanchBullsMintAndReward.getMaintenanceFeesForTheOwner({"from": person_3})  == 0
+    assert TheRanchBullsMintAndReward.getMaintenanceFeesStandingForTheOwner({"from": person_3}) == 0
+    assert TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_3}) == 0
+
+
+
+    with pytest.raises(exceptions.VirtualMachineError): 
+        TheRanchBullsMintAndReward.payMaintanenceFees({"from": person_12})
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    # assert mocked_wbtc.balanceOf(person_1) == 0
+
+    # # usdc_balance =  TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_1})
+    # # fees_due = TheRanchBullsMintAndReward.getMaintenanceFeesForTheOwner({"from": person_1})
+    # # if usdc_balance >= fees_due: 
+    # #     pay_maintenance_fees_event = TheRanchBullsMintAndReward.payMaintanenceFees({"from": person_1})
+    # # else:
+    # #     amount_to_approve = fees_due - usdc_balance
+    # #     mocked_usdc.approve(TheRanchBullsMintAndReward,amount_to_approve, {"from": person_1})
+    # #     pay_maintenance_fees_event = TheRanchBullsMintAndReward.payMaintanenceFees({"from": person_1})
+
+
+    # # print(pay_maintenance_fees_event.info())
+    # # assert pay_maintenance_fees_event.events["Transfer"]["value"] == fees_due
