@@ -6,14 +6,14 @@ pragma solidity 0.8.7;
 */
 
 
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/Counters.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IERC2981, IERC165 } from "@openzeppelin/contracts/interfaces/IERC2981.sol";
-import "./TheRanchBullsMintReward.sol";
+import "@openzeppelin/security/ReentrancyGuard.sol";
+import "@openzeppelin/token/ERC721/extensions/ERC721Enumerable.sol";
+import "@openzeppelin/access/Ownable.sol";
+import "@openzeppelin/utils/Counters.sol";
+import "@openzeppelin/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/token/ERC20/IERC20.sol";
+import { IERC2981, IERC165 } from "@openzeppelin/interfaces/IERC2981.sol";
+import "./TheRanchBTCBullsCommunity.sol";
 
 
 
@@ -50,8 +50,6 @@ contract TheRanchBullsFeeding is
     string private baseURI;
     string private baseExtension = ".json";
  
-
-   
 
 
     event feedBullsEvent(
@@ -180,14 +178,11 @@ contract TheRanchBullsFeeding is
 
 
     function updatingUsdcToBullsMintandRewardContract(address[] memory _recipients, uint256 _amountToAdd) public {
-        TheRanchBullsMintReward TRBB = TheRanchBullsMintReward(TheRanchBullsMintRewardAddress);
-        TRBB.updateUsdcBonusFromAnotherContract(_recipients, _amountToAdd);
+        TheRanchBTCBullsCommunity TRBC = TheRanchBTCBullsCommunity(TheRanchBullsMintRewardAddress);
+        TRBC.updateUsdcBonusFromAnotherContract(_recipients, _amountToAdd);
     }
 
     
-
-
-
 
 
     // Contract Funding / Withdrawing / Transferring

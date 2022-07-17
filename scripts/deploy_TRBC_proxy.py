@@ -19,10 +19,11 @@ def main():
         {"from": account},
         publish_source=config["networks"][network.show_active()]["verify"],
     )
-    # Optional, deploy the ProxyAdmin and use that as the admin contract
-    proxy_admin = ProxyAdmin.deploy(
-        {"from": account},
-    )
+    # # Optional, deploy the ProxyAdmin and use that as the admin contract
+    # proxy_admin = ProxyAdmin.deploy(
+    #     {"from": account},
+    #     publish_source=config["networks"][network.show_active()]["verify"],
+    # )
 
     # If we want an intializer function we can add
     # `initializer=box.store, 1`
@@ -32,14 +33,13 @@ def main():
     # box_encoded_initializer_function = encode_function_data(initializer=box.store, 1)
     proxy = TransparentUpgradeableProxy.deploy(
         TheRanchBTCBulls.address,
-        # account.address,
-        proxy_admin.address,
         bulls_encoded_initializer_function,
         {"from": account, "gas_limit": 1000000},
+        publish_source=config["networks"][network.show_active()]["verify"],
     )
     print(f"Proxy deployed to {proxy} ! You can now upgrade it just incase!")
-    proxy_bulls = Contract.from_abi("Box", proxy.address, TheRanchBTCBulls.abi)
-    proxy_bulls.store(1,{"from": account})
+    # proxy_bulls = Contract.from_abi("Box", proxy.address, TheRanchBTCBulls.abi)
+    # proxy_bulls.store(1,{"from": account})
    
     #print(f"Here is the initial value in the Box: {proxy_box.retrieve()}")
 
@@ -49,27 +49,5 @@ def main():
 
 
 
-
-
-    #############
-    ## UPGRADE ##
-    #############
-
-
-    box_v2 = BoxV2.deploy({"from": account})
-
-    upgrade_transaction = upgrade(account, proxy, box_v2, proxy_admin_contract=proxy_admin)
-    print(upgrade_transaction.info())
-
-    upgrade_transaction.wait
-
-    print(f'Proxy has been upgraded')
-    proxy_box = Contract.from_abi("BoxV2", proxy.address, BoxV2.abi)
-
-
-    proxy_box.increment({"from": account})
-
-    print(f"Here is the value in the Box after upgrade and increment: {proxy_box.retrieve()}")
-    
 
 

@@ -1,33 +1,71 @@
-from curses import use_env
-from distutils import core
-from unittest import mock
-from pyrsistent import v
-from scripts.helpful_scripts import get_account, get_contract, fund_with_link, LOCAL_BLOCKCHAIN_ENVIRONMENTS
-from brownie import TheRanchBullsMintAndReward, MockedTokens_USDC, MockedTokens_WBTC, network, config, MockV3Aggregator, accounts, exceptions, chain
-from scripts.deploy_mintAndReward import deploy_contract
-from scripts.deploy_v2mocks import deploy_v2mocks
-from web3 import Web3
-import time, pytest
+
 import pprint
 import math
+from urllib.request import proxy_bypass
+import pytest
+
+
+from brownie import (
+    TheRanchBTCBullsCommunity,
+    TheRanchBTCBullsCommunityV2,
+    TRBCProxy,
+    Contract,
+    network,
+    config,
+    accounts,
+    exceptions,
+    MockedTokens_USDC,
+    MockedTokens_WBTC
+)
+from scripts.helpful_scripts import get_account, encode_function_data, upgrade, LOCAL_BLOCKCHAIN_ENVIRONMENTS
+
+
+def test_TRBCProxy_pause_and_mintingCost():
 
 
 
+    deployer = accounts[0]
+
+    account = get_account()
+    TRBC = TheRanchBTCBullsCommunity.deploy(
+        {"from": deployer},
+    )
+
+   
+    # proxy_admin = ProxyAdmin.deploy(
+    #     {"from": owner},
+    # )
+    box_encoded_initializer_function = encode_function_data()
+    proxy = TRBCProxy.deploy(
+        TRBC.address,
+        # proxy_admin.address,
+        box_encoded_initializer_function,
+        {"from": deployer, "gas_limit": 1000000},
+    )
+    TRBCV2 = TheRanchBTCBullsCommunityV2.deploy(
+        {"from": deployer},
+    )
+
+
+    proxy_TRBC = Contract.from_abi("TheRanchBTCBullsCommunity", proxy.address, TRBC.abi)
+
+
+    coinbase = accounts[10001]
+    defender_wallet = accounts[10002]
+    multisig = accounts[10003]
+
+    btcMinersSafe = accounts[10006]
+    hostingSafe = accounts[10007]
+    coreTeam1 = accounts[10004]
+    coreTeam2 = accounts[10005]
 
 
 
-def test_feeding_contract():
+    mocked_usdc = MockedTokens_USDC.deploy(1_000_000_000 * 10**6, {"from": coinbase})
+    mocked_wbtc = MockedTokens_WBTC.deploy(10 * 10**8, {"from": multisig})
 
-    fund_deposited = 80_000
 
-    #owner = accounts[0]
-    owner = get_account()
-    TheRanchBullsMintAndReward = deploy_contract()
 
-    ### set the address on each contract for to reference other contract ####
-
- 
-    # assert contract_balance == 0
     
     person_1 = accounts[1]
     person_2 = accounts[2]
@@ -62,44 +100,39 @@ def test_feeding_contract():
     person_31 = accounts[34]
 
 
-    coinbase = accounts[31]
-    coreTeam1 = accounts[32]
-    coreTeam2 = accounts[33]
-
-
-    people = {
-        person_1: 'person_1',
-        person_2: 'person_2',
-        person_3: 'person_3',
-        person_4: 'person_4',
-        person_5: 'person_5',
-        person_6: 'person_6',
-        person_7: 'person_7',
-        person_8: 'person_8',
-        person_9: 'person_9',
-        person_10: 'person_10',
-        person_11: 'person_11',
-        person_12: 'person_12',
-        person_13: 'person_13',
-        person_14: 'person_14',
-        person_15: 'person_15',
-        person_16: 'person_16',
-        person_17: 'person_17',
-        person_18: 'person_18',
-        person_19: 'person_19',
-        person_20: 'person_20',
-        person_21: 'person_21',
-        person_22: 'person_22',
-        person_23: 'person_23',
-        person_24: 'person_24',
-        person_25: 'person_25',
-        person_26: 'person_26',
-        person_27: 'person_27',
-        person_28: 'person_28',
-        person_29: 'person_29',
-        person_30: 'person_30',
-        person_31: 'person_31',
-    }
+    # people = {
+    #     person_1: 'person_1',
+    #     person_2: 'person_2',
+    #     person_3: 'person_3',
+    #     person_4: 'person_4',
+    #     person_5: 'person_5',
+    #     person_6: 'person_6',
+    #     person_7: 'person_7',
+    #     person_8: 'person_8',
+    #     person_9: 'person_9',
+    #     person_10: 'person_10',
+    #     person_11: 'person_11',
+    #     person_12: 'person_12',
+    #     person_13: 'person_13',
+    #     person_14: 'person_14',
+    #     person_15: 'person_15',
+    #     person_16: 'person_16',
+    #     person_17: 'person_17',
+    #     person_18: 'person_18',
+    #     person_19: 'person_19',
+    #     person_20: 'person_20',
+    #     person_21: 'person_21',
+    #     person_22: 'person_22',
+    #     person_23: 'person_23',
+    #     person_24: 'person_24',
+    #     person_25: 'person_25',
+    #     person_26: 'person_26',
+    #     person_27: 'person_27',
+    #     person_28: 'person_28',
+    #     person_29: 'person_29',
+    #     person_30: 'person_30',
+    #     person_31: 'person_31',
+    # }
 
 
 

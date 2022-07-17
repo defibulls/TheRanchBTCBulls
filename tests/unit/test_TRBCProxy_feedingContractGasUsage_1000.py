@@ -1,24 +1,78 @@
-from curses import use_env
-from curses.ascii import FF
-from distutils import core
-from unittest import mock
-from pyrsistent import v
-from scripts.helpful_scripts import get_account, get_contract, fund_with_link, LOCAL_BLOCKCHAIN_ENVIRONMENTS
-from brownie import TheRanchBullsMintReward, TheRanchBullsFeeding, MockedTokens_USDC, MockedTokens_WBTC, network, config, MockV3Aggregator, accounts, exceptions, chain
-from scripts.deploy_mintAndReward import deploy_contract
+from urllib.request import proxy_bypass
+import pytest
+
+
+from brownie import (
+    TheRanchBTCBullsCommunity,
+    TheRanchBTCBullsCommunityV2,
+    TRBCProxy,
+    TheRanchBullsFeeding,
+    Contract,
+    network,
+    config,
+    accounts,
+    exceptions,
+    MockedTokens_USDC,
+    MockedTokens_WBTC
+)
+from scripts.helpful_scripts import get_account, encode_function_data, upgrade, LOCAL_BLOCKCHAIN_ENVIRONMENTS
+
 from scripts.deploy_bullsFeeding import deploy_feeding_contract
-from scripts.deploy_v2mocks import deploy_v2mocks
-from web3 import Web3
-import time, pytest
-import pprint
-import math
+
+
+def test_TRBCProxy_feedingContractGasUsage_1000():
+
+
+
+    deployer = accounts[0]
+
+    account = get_account()
+    TRBC = TheRanchBTCBullsCommunity.deploy(
+        {"from": deployer},
+    )
+
+   
+    # proxy_admin = ProxyAdmin.deploy(
+    #     {"from": owner},
+    # )
+    box_encoded_initializer_function = encode_function_data()
+    proxy = TRBCProxy.deploy(
+        TRBC.address,
+        # proxy_admin.address,
+        box_encoded_initializer_function,
+        {"from": deployer, "gas_limit": 2000000},
+    )
+    TRBCV2 = TheRanchBTCBullsCommunityV2.deploy(
+        {"from": deployer},
+    )
+
+
+    proxy_TRBC = Contract.from_abi("TheRanchBTCBullsCommunity", proxy.address, TRBC.abi)
+
+
+    coinbase = accounts[10001]
+    defender_wallet = accounts[10002]
+    multisig = accounts[10003]
+
+    btcMinersSafe = accounts[10006]
+    hostingSafe = accounts[10007]
+    coreTeam1 = accounts[10004]
+    coreTeam2 = accounts[10005]
+
+
+
+    mocked_usdc = MockedTokens_USDC.deploy(1_000_000_000 * 10**6, {"from": coinbase})
+    mocked_wbtc = MockedTokens_WBTC.deploy(10 * 10**8, {"from": multisig})
 
 
 
 
 
 
-def test_feedingContract_works():
+
+
+
+
 
 
     person_1 = accounts[1]
@@ -1029,61 +1083,7 @@ def test_feedingContract_works():
     person_999 = accounts[999]
     person_1000 = accounts[1000]
     
-    coinbase = accounts[10001]
-    defender_wallet = accounts[10002]
-    multisig = accounts[10003]
-
-    btcMinersSafe = accounts[10006]
-    hostingSafe = accounts[10007]
-
-
-
-
-
-
-
-    TheRanchBullsMintAndReward = deploy_contract()
-    deployer = TheRanchBullsMintAndReward.owner.call()
-
-    coreTeam1 = TheRanchBullsMintAndReward.coreTeam_1.call()
-    coreTeam2 = TheRanchBullsMintAndReward.coreTeam_2.call()
-
-
- 
-    ################################################################
-    ## assert the deployer can transfer ownership of the contract ##
-    ################################################################
-
-    tx_transfer_ownership = TheRanchBullsMintAndReward.transferOwnership(multisig)
-    print(tx_transfer_ownership.info())
-
-    assert TheRanchBullsMintAndReward.owner.call() != deployer
-    assert TheRanchBullsMintAndReward.owner.call() == multisig
-
-
-
-
-    assert TheRanchBullsMintAndReward.paused.call() == True
-
-
-    mocked_usdc = MockedTokens_USDC.deploy(1_000_000_000 * 10**6, {"from": coinbase})
-    mocked_wbtc = MockedTokens_WBTC.deploy(10 * 10**8, {"from": multisig})
-
-    TheRanchBullsMintAndReward.setUsdcTokenAddress(mocked_usdc,{"from": multisig})
-    TheRanchBullsMintAndReward.setWbtcTokenAddress(mocked_wbtc,{"from": multisig})
-    TheRanchBullsMintAndReward.setBaseURI("ipfs://aldkfjasdpofe", {"from": multisig})
-    TheRanchBullsMintAndReward.setSafeAddresses(hostingSafe,btcMinersSafe,{"from": multisig})
-
-
-
-
-
- 
-    #########################################################
-    ####       Transfer USDC  each person                ####
-    #########################################################
-    
-
+  
     #########################################################
     ####       Transfer USDC  each person                ####
     #########################################################
@@ -2092,31 +2092,132 @@ def test_feedingContract_works():
     print(f'########################## Transferred Done at 1000 person ##################################')
 
 
+    proxy_TRBC.initialize({"from": multisig })
+    TRBC.initialize({"from": multisig })
 
-    change_pause_status = TheRanchBullsMintAndReward.setPauseStatus(False, {"from": multisig})
-  
+
+
+    print(f'deployer: {deployer}')
+    print(f'multisig : {multisig}')
+    print(f'owner of proxy_TRBC  : {proxy_TRBC.owner.call()}')
+    print(f'owner of TRBC  : {TRBC.owner.call()}')
+
+
+    DEFAULT_ADMIN_ROLE = proxy.DEFAULT_ADMIN_ROLE.call()
+
+    proxy.hasRole(DEFAULT_ADMIN_ROLE, deployer) == True
+    proxy.hasRole(DEFAULT_ADMIN_ROLE, multisig) == False
+
+    proxy.grantRole(DEFAULT_ADMIN_ROLE,multisig,{"from": deployer})
+    proxy.revokeRole(DEFAULT_ADMIN_ROLE,deployer,{"from": multisig})
+
+    print(proxy.hasRole(DEFAULT_ADMIN_ROLE, deployer))
+    print(proxy.hasRole(DEFAULT_ADMIN_ROLE, multisig))
+
+    proxy.hasRole(DEFAULT_ADMIN_ROLE, deployer) == False
+    proxy.hasRole(DEFAULT_ADMIN_ROLE, multisig) == True
+
+
+    proxy_TRBC.setUsdcTokenAddress(mocked_usdc,{"from": multisig})
+    proxy_TRBC.setWbtcTokenAddress(mocked_wbtc,{"from": multisig})
+    proxy_TRBC.setBaseURI("ipfs://aldkfjasdpofe", {"from": multisig})
+    proxy_TRBC.setSafeAddresses(hostingSafe,btcMinersSafe,{"from": multisig})
+    proxy_TRBC.setCoreTeamAddresses(coreTeam1,coreTeam2,{"from": multisig})
+
+
+
+    print("Things needed to unpause the contract")
+    print("--------------------------------------")
+
+    print(f' coreTeam1: {proxy_TRBC.coreTeam_1.call()}')
+    print(f' coreTeam2: {proxy_TRBC.coreTeam_2.call()}')
+    print(f' usdc contract : {proxy_TRBC.usdcTokenContract.call()}')
+    print(f' wbtc contract : {proxy_TRBC.wbtcTokenContract.call()}')
+    print(f' hosting safe address  : {proxy_TRBC.hostingSafe.call()}')
+    print(f' btcMinersSafe address  : {proxy_TRBC.btcMinersSafe.call()}')
+    print(f'nftPerAddressLimit: {proxy_TRBC.nftPerAddressLimit.call()}')
+    print(f'mintingCost: {proxy_TRBC.mintingCost.call()}')
+
+
+
+
+    print("Things needed to unpause the contract")
+    print("--------------------------------------")
+
+    print(f' coreTeam1: {TRBC.coreTeam_1.call()}')
+    print(f' coreTeam2: {TRBC.coreTeam_2.call()}')
+    print(f' usdc contract : {TRBC.usdcTokenContract.call()}')
+    print(f' wbtc contract : {TRBC.wbtcTokenContract.call()}')
+    print(f' hosting safe address  : {TRBC.hostingSafe.call()}')
+    print(f' btcMinersSafe address  : {TRBC.btcMinersSafe.call()}')
+    print(f'nftPerAddressLimit: {TRBC.nftPerAddressLimit.call()}')
+    print(f'mintingCost: {TRBC.mintingCost.call()}')
+
+
+
+
+ 
+    assert proxy_TRBC.nftPerAddressLimit.call() == 50
+    assert proxy_TRBC.wbtcTokenDecimals.call() == 8
+    assert proxy_TRBC.usdcTokenDecimals.call() == 6
+
+    assert proxy_TRBC.mintingCost.call() == 350
+    assert proxy_TRBC.publicSaleLive.call() == False
+    assert proxy_TRBC.paused.call() == True
+
+    assert proxy_TRBC.coreTeam_1.call() == coreTeam1
+    assert proxy_TRBC.coreTeam_2.call() == coreTeam2
+
+
+
+
+    assert proxy_TRBC.paused.call() == True
+    assert TRBC.paused.call() == True
+
+
+    assert proxy_TRBC.publicSaleLive.call() == False
+    assert TRBC.publicSaleLive.call() == False
+
+
+
+    proxy_TRBC.setPauseStatus(False, {"from": multisig})
+ 
     #owner starts the public sale
-    TheRanchBullsMintAndReward.togglePublicSaleStatus({"from": multisig})
-
-
-    print(f'B coreTeam1 USDC rewards on contract: {TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": coreTeam1})}')
-    print(f'B person_1 USDC rewards on contract: {TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_1})}')
-    print(f'B person_2 USDC rewards on contract: {TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_2})}')
-    print(f'B person_3 USDC rewards on contract: {TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_3})}')
-    print(f'B person_4 USDC rewards on contract: {TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_4})}')
-    print(f'B person_5 USDC rewards on contract: {TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_5})}')
-    print(f'B person_6 USDC rewards on contract: {TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_6})}')
-    print(f'B person_7 USDC rewards on contract: {TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_7})}')
+    proxy_TRBC.togglePublicSaleStatus({"from": multisig})
 
 
 
-    assert TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_1}) == 0
-    assert TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_2}) == 0
-    assert TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_3}) == 0
-    assert TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_4}) == 0
-    assert TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_5}) == 0
-    assert TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_6}) == 0
-    assert TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_7}) == 0
+
+    assert proxy_TRBC.paused.call() == False
+    assert TRBC.paused.call() == True
+
+
+    assert proxy_TRBC.publicSaleLive.call() == True
+    assert TRBC.publicSaleLive.call() == False
+
+
+
+
+
+
+    print(f'B coreTeam1 USDC rewards on contract: {proxy_TRBC.getUsdcBalanceForAddress({"from": coreTeam1})}')
+    print(f'B person_1 USDC rewards on contract: {proxy_TRBC.getUsdcBalanceForAddress({"from": person_1})}')
+    print(f'B person_2 USDC rewards on contract: {proxy_TRBC.getUsdcBalanceForAddress({"from": person_2})}')
+    print(f'B person_3 USDC rewards on contract: {proxy_TRBC.getUsdcBalanceForAddress({"from": person_3})}')
+    print(f'B person_4 USDC rewards on contract: {proxy_TRBC.getUsdcBalanceForAddress({"from": person_4})}')
+    print(f'B person_5 USDC rewards on contract: {proxy_TRBC.getUsdcBalanceForAddress({"from": person_5})}')
+    print(f'B person_6 USDC rewards on contract: {proxy_TRBC.getUsdcBalanceForAddress({"from": person_6})}')
+    print(f'B person_7 USDC rewards on contract: {proxy_TRBC.getUsdcBalanceForAddress({"from": person_7})}')
+
+
+
+    assert proxy_TRBC.getUsdcBalanceForAddress({"from": person_1}) == 0
+    assert proxy_TRBC.getUsdcBalanceForAddress({"from": person_2}) == 0
+    assert proxy_TRBC.getUsdcBalanceForAddress({"from": person_3}) == 0
+    assert proxy_TRBC.getUsdcBalanceForAddress({"from": person_4}) == 0
+    assert proxy_TRBC.getUsdcBalanceForAddress({"from": person_5}) == 0
+    assert proxy_TRBC.getUsdcBalanceForAddress({"from": person_6}) == 0
+    assert proxy_TRBC.getUsdcBalanceForAddress({"from": person_7}) == 0
 
 
 
@@ -5155,8 +5256,8 @@ def test_feedingContract_works():
     print(f'\nReward the Bulls for owning the HayBales \n')  
 
 
-    TheRanchBullsMintAndReward.setEcosystemRole(TheRanchBullsFeedingContract, True, {"from": multisig})
-    TheRanchBullsFeedingContract.setTheRanchBullsMintRewardAddress(TheRanchBullsMintAndReward, {"from": multisig})  
+    proxy_TRBC.setEcosystemRole(TheRanchBullsFeedingContract, True, {"from": multisig})
+    TheRanchBullsFeedingContract.setTheRanchBullsMintRewardAddress(proxy_TRBC, {"from": multisig})  
 
     #mocked_usdc.approve(TheRanchBullsFeedingContract, 4000 ,{"from":multisig})
     feed_bulls_tx = TheRanchBullsFeedingContract.feedTheBulls(1,1000, 400000)
@@ -5164,16 +5265,16 @@ def test_feedingContract_works():
     print(feed_bulls_tx.info())
 
 
-    print(f'A coreTeam1 USDC rewards on contract: {TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": coreTeam1})}')
-    print(f'A person_1 USDC rewards on contract: {TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_1})}')
-    print(f'A person_2 USDC rewards on contract: {TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_2})}')
-    print(f'A person_3 USDC rewards on contract: {TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_3})}')
-    print(f'A person_4 USDC rewards on contract: {TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_4})}')
-    print(f'A person_5 USDC rewards on contract: {TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_5})}')
-    print(f'A person_6 USDC rewards on contract: {TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_6})}')
-    print(f'A person_7 USDC rewards on contract: {TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_7})}')
-    print(f'A person_8 USDC rewards on contract: {TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_8})}')
-    print(f'A person_9 USDC rewards on contract: {TheRanchBullsMintAndReward.getUsdcRewardBalanceForTheOwner({"from": person_9})}')
+    print(f'A coreTeam1 USDC rewards on contract: {proxy_TRBC.getUsdcBalanceForAddress({"from": coreTeam1})}')
+    print(f'A person_1 USDC rewards on contract: {proxy_TRBC.getUsdcBalanceForAddress({"from": person_1})}')
+    print(f'A person_2 USDC rewards on contract: {proxy_TRBC.getUsdcBalanceForAddress({"from": person_2})}')
+    print(f'A person_3 USDC rewards on contract: {proxy_TRBC.getUsdcBalanceForAddress({"from": person_3})}')
+    print(f'A person_4 USDC rewards on contract: {proxy_TRBC.getUsdcBalanceForAddress({"from": person_4})}')
+    print(f'A person_5 USDC rewards on contract: {proxy_TRBC.getUsdcBalanceForAddress({"from": person_5})}')
+    print(f'A person_6 USDC rewards on contract: {proxy_TRBC.getUsdcBalanceForAddress({"from": person_6})}')
+    print(f'A person_7 USDC rewards on contract: {proxy_TRBC.getUsdcBalanceForAddress({"from": person_7})}')
+    print(f'A person_8 USDC rewards on contract: {proxy_TRBC.getUsdcBalanceForAddress({"from": person_8})}')
+    print(f'A person_9 USDC rewards on contract: {proxy_TRBC.getUsdcBalanceForAddress({"from": person_9})}')
 
 
 
